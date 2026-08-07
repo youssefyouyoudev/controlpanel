@@ -10,9 +10,12 @@ use App\Services\Auth\TwoFactorAuthenticationService;
 use App\Services\Metrics\MockServerMetricsProvider;
 use App\Services\Metrics\ServerMetricsProvider;
 use App\Services\ServiceStatusService;
+use App\Support\SanctumStatefulDomains;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use PragmaRX\Google2FA\Google2FA;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -72,6 +75,22 @@ it('returns cors headers on unauthenticated current-user responses', function ()
 
 it('normalizes literal null session domains from environment files', function (): void {
     expect(config('session.domain'))->toBeNull();
+});
+
+it('normalizes sanctum stateful domains to host names', function (): void {
+    expect(SanctumStatefulDomains::normalize('https://control.youssefyouyou.com/'))->toBe('control.youssefyouyou.com')
+        ->and(SanctumStatefulDomains::normalize('control.youssefyouyou.com/dashboard'))->toBe('control.youssefyouyou.com')
+        ->and(SanctumStatefulDomains::normalize('http://localhost:3000/login'))->toBe('localhost:3000');
+});
+
+it('treats the production frontend origin as a stateful sanctum request', function (): void {
+    config()->set('sanctum.stateful', ['control.youssefyouyou.com']);
+
+    $request = Request::create('/api/v1/auth/user', 'GET', server: [
+        'HTTP_ORIGIN' => 'https://control.youssefyouyou.com',
+    ]);
+
+    expect(EnsureFrontendRequestsAreStateful::fromFrontend($request))->toBeTrue();
 });
 
 it('requires two-factor challenge and accepts authenticator codes', function (): void {
