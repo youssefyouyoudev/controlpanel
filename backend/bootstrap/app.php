@@ -38,6 +38,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $trustedProxies = (string) env('TRUSTED_PROXIES', env('APP_ENV') === 'local' ? '' : 'REMOTE_ADDR');
+
+        if ($trustedProxies !== '') {
+            $middleware->trustProxies(
+                at: $trustedProxies,
+                headers: Request::HEADER_X_FORWARDED_FOR
+                    | Request::HEADER_X_FORWARDED_HOST
+                    | Request::HEADER_X_FORWARDED_PORT
+                    | Request::HEADER_X_FORWARDED_PROTO
+                    | Request::HEADER_X_FORWARDED_PREFIX
+            );
+        }
+
         $middleware->statefulApi();
         $middleware->trimStrings(except: ['content']);
         $middleware->append(RequestIdMiddleware::class);

@@ -2,6 +2,12 @@
 
 use Illuminate\Support\Str;
 
+$nullableEnv = static function (string $key, mixed $default = null): mixed {
+    $value = env($key, $default);
+
+    return is_string($value) && strtolower($value) === 'null' ? null : $value;
+};
+
 return [
 
     /*
@@ -156,7 +162,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => $nullableEnv('SESSION_DOMAIN'),
 
     /*
     |--------------------------------------------------------------------------

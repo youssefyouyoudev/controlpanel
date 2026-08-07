@@ -70,6 +70,10 @@ it('returns cors headers on unauthenticated current-user responses', function ()
         ->assertHeader('Access-Control-Allow-Credentials', 'true');
 });
 
+it('normalizes literal null session domains from environment files', function (): void {
+    expect(config('session.domain'))->toBeNull();
+});
+
 it('requires two-factor challenge and accepts authenticator codes', function (): void {
     $user = User::factory()->owner()->create(['email' => 'owner@example.com', 'password' => Hash::make('CorrectPassword!123')]);
     app(TwoFactorAuthenticationService::class)->startEnrollment($user);

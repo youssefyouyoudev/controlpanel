@@ -26,6 +26,7 @@ panel.youssefyouyou.com        -> existing Coolify installation
 APP_URL=https://control-api.youssefyouyou.com
 FRONTEND_URL=https://control.youssefyouyou.com
 FRONTEND_URLS=https://control.youssefyouyou.com
+TRUSTED_PROXIES=REMOTE_ADDR
 SANCTUM_STATEFUL_DOMAINS=control.youssefyouyou.com
 SESSION_DOMAIN=.youssefyouyou.com
 SESSION_SECURE_COOKIE=true
