@@ -1,4 +1,5 @@
 import axios, { AxiosError, type AxiosResponse } from "axios";
+import { ZodError } from "zod";
 import { env } from "@/lib/env";
 import {
   auditLogSchema,
@@ -95,6 +96,17 @@ export function normalizeApiError(error: unknown): ApiError {
     };
   }
 
+  if (error instanceof ZodError) {
+    const issue = error.issues[0];
+    const path = issue?.path.length ? issue.path.join(".") : "response";
+
+    return {
+      status: 0,
+      message: issue ? `Unexpected API response shape at ${path}: ${issue.message}` : "Unexpected API response shape.",
+      fields: {},
+    };
+  }
+
   return { status: 0, message: "Unexpected client error.", fields: {} };
 }
 
@@ -130,14 +142,14 @@ export const authApi = {
       return { type: "two_factor_required" };
     }
 
-    const user = await this.me();
+    const user = await authApi.me();
 
     return { type: "authenticated", user };
   },
   async twoFactorChallenge(values: { code?: string; recovery_code?: string }): Promise<User> {
     await csrfCookie();
     await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
-    return this.me();
+    return authApi.me();
   },
   async logout() {
     await csrfCookie();

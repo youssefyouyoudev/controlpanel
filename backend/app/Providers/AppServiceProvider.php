@@ -24,7 +24,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(ServerMetricsProvider::class, function (): ServerMetricsProvider {
-            return config('youpanel.metrics_driver') === 'mock'
+            $driver = config('youpanel.metrics_driver');
+
+            return $driver === 'mock' || ($driver === 'auto' && $this->app->environment(['local', 'testing']))
                 ? new MockServerMetricsProvider
                 : new LinuxServerMetricsProvider;
         });

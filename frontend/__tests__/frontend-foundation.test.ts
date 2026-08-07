@@ -166,7 +166,9 @@ describe("api error normalization", () => {
       return { data: { ok: true, message: "Logged in.", data: { user }, meta: {}, errors: null } } as never;
     });
 
-    await expect(authApi.login({ email: "youssef@example.com", password: "secret", remember: true })).resolves.toEqual({
+    const detachedLogin = authApi.login;
+
+    await expect(detachedLogin({ email: "youssef@example.com", password: "secret", remember: true })).resolves.toEqual({
       type: "authenticated",
       user,
     });
@@ -179,6 +181,15 @@ describe("api error normalization", () => {
       message: "Unexpected client error.",
       fields: {},
     });
+  });
+
+  it("normalizes API schema validation errors with the failing path", () => {
+    const result = dashboardSummarySchema.safeParse({});
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(normalizeApiError(result.error).message).toContain("Unexpected API response shape at");
+    }
   });
 });
 
@@ -201,7 +212,16 @@ describe("dashboard response validation", () => {
       website_counts: { total: 0, healthy: 0, degraded: 0, offline: 0 },
       services: [],
       websites: [],
-      activity: [],
+      activity: [{
+        id: 1,
+        action: "auth.login",
+        target_type: null,
+        target_identifier: null,
+        request_id: null,
+        created_at: new Date().toISOString(),
+        user: null,
+        website: null,
+      }],
       coolify: { enabled: false, driver: "mock", public_url: null, linked_resources: 0, container_metrics_supported: false },
       deployments: { active: 0, awaiting_approval: 0, failed: 0, latest: [] },
       collected_at: new Date().toISOString(),

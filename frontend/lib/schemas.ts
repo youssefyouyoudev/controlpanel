@@ -80,8 +80,8 @@ export const auditLogSchema = z.object({
   target_identifier: z.string().nullable(),
   request_id: z.string().nullable(),
   created_at: z.string().nullable(),
-  user: userSchema.optional(),
-  website: websiteSchema.optional(),
+  user: userSchema.nullable().optional(),
+  website: websiteSchema.nullable().optional(),
 });
 export type AuditLog = z.infer<typeof auditLogSchema>;
 

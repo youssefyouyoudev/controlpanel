@@ -10,6 +10,7 @@ use App\Services\Auth\TwoFactorAuthenticationService;
 use App\Services\Metrics\MockServerMetricsProvider;
 use App\Services\Metrics\ServerMetricsProvider;
 use App\Services\ServiceStatusService;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use PragmaRX\Google2FA\Google2FA;
@@ -205,6 +206,25 @@ it('uses the metrics fallback contract and service allowlist', function (): void
     expect(app(ServiceStatusService::class)->status('nginx')['status'])->toBe('running');
     app(ServiceStatusService::class)->status('ssh');
 })->throws(HttpException::class);
+
+it('uses mock metrics for auto mode in local-style environments', function (): void {
+    config()->set('youpanel.metrics_driver', 'auto');
+    app()->forgetInstance(ServerMetricsProvider::class);
+
+    expect(app(ServerMetricsProvider::class))->toBeInstanceOf(MockServerMetricsProvider::class);
+});
+
+it('reuses an existing owner when seeding local demo records', function (): void {
+    config()->set('youpanel.demo_enabled', true);
+    $owner = User::factory()->owner()->create(['email' => 'contact@youssefyouyou.com']);
+
+    $this->seed(DatabaseSeeder::class);
+
+    expect(User::query()->where('role', UserRole::Owner)->count())->toBe(1)
+        ->and(User::query()->where('email', 'owner@youpanel.test')->exists())->toBeFalse()
+        ->and(Website::query()->count())->toBe(2)
+        ->and(AuditLog::query()->where('user_id', $owner->id)->where('action', 'demo.seeded')->exists())->toBeTrue();
+});
 
 it('filters dashboard data and audit logs by authorization', function (): void {
     $owner = User::factory()->owner()->create();

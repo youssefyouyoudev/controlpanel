@@ -25,16 +25,20 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        $owner = User::query()->firstOrCreate(
-            ['email' => 'owner@youpanel.test'],
-            [
-                'name' => 'Youssef Demo Owner',
-                'password' => Hash::make('ChangeMe!DemoOnly123'),
-                'role' => UserRole::Owner,
-                'is_active' => true,
-                'timezone' => 'Africa/Casablanca',
-            ]
-        );
+        $owner = User::query()
+            ->where('role', UserRole::Owner)
+            ->orderBy('id')
+            ->first()
+            ?? User::query()->firstOrCreate(
+                ['email' => 'owner@youpanel.test'],
+                [
+                    'name' => 'Youssef Demo Owner',
+                    'password' => Hash::make('ChangeMe!DemoOnly123'),
+                    'role' => UserRole::Owner,
+                    'is_active' => true,
+                    'timezone' => 'Africa/Casablanca',
+                ]
+            );
 
         $developer = User::query()->firstOrCreate(
             ['email' => 'developer@youpanel.test'],
