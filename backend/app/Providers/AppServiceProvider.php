@@ -62,17 +62,32 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('deployments-write', fn (Request $request): Limit => Limit::perMinute(10)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('console-run', fn (Request $request): Limit => Limit::perMinute(12)->by($request->user()?->id ?: $request->ip()));
 
-        if ($this->app->isProduction()) {
-            foreach (['APP_KEY', 'APP_URL', 'FRONTEND_URL', 'SANCTUM_STATEFUL_DOMAINS'] as $key) {
-                if (blank(env($key))) {
-                    throw new RuntimeException("Missing required production environment variable [{$key}].");
-                }
-            }
+    if ($this->app->isProduction()) {
+    $requiredConfiguration = [
+        'APP_KEY' => config('app.key'),
+        'APP_URL' => config('app.url'),
+        'FRONTEND_URL' => config('app.frontend_url')
+            ?? config('cors.allowed_origins.0'),
+        'SANCTUM_STATEFUL_DOMAINS' => config('sanctum.stateful'),
+    ];
 
-            if ((bool) config('coolify.enabled') && blank(config('coolify.api_token'))) {
-                throw new RuntimeException('Coolify is enabled but COOLIFY_API_TOKEN is missing.');
-            }
+    foreach ($requiredConfiguration as $name => $value) {
+        if (blank($value)) {
+            throw new RuntimeException(
+                "Missing required production configuration [{$name}]."
+            );
         }
+    }
+
+    if (
+        (bool) config('coolify.enabled')
+        && blank(config('coolify.api_token'))
+    ) {
+        throw new RuntimeException(
+            'Coolify is enabled but COOLIFY_API_TOKEN is missing.'
+        );
+    }
+}
 
         foreach (['coolify.internal_url', 'coolify.public_url'] as $key) {
             $url = (string) config($key);
