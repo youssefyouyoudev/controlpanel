@@ -45,7 +45,7 @@ class AuthController extends Controller
             throw $exception;
         }
 
-        $user = User::query()->where('email', $request->string('email'))->first();
+        $user = User::query()->where('email', $request->string('email')->toString())->first();
 
         if (! $user || ! Hash::check($request->string('password')->toString(), $user->password)) {
             RateLimiter::hit($key, 60);
@@ -79,7 +79,7 @@ class AuthController extends Controller
             return ApiResponse::success(['requires_two_factor' => true], 'Two-factor authentication required.', 202);
         }
 
-        $this->completeLogin($request, $user);
+        $this->completeLogin($request, $user, $request->boolean('remember'));
 
         return ApiResponse::success(['user' => new UserResource($user)], 'Logged in.');
     }
@@ -121,9 +121,9 @@ class AuthController extends Controller
         return ApiResponse::success(['user' => new UserResource($user)], 'Logged in.');
     }
 
-    private function completeLogin(Request $request, User $user): void
+    private function completeLogin(Request $request, User $user, bool $remember = false): void
     {
-        Auth::login($user);
+        Auth::login($user, $remember);
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }

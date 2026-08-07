@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isProtectedRoute } from "@/lib/routing";
 
 function nonce() {
   return Buffer.from(crypto.randomUUID()).toString("base64");
@@ -42,19 +41,15 @@ export function proxy(request: NextRequest) {
   const nonceValue = nonce();
   const cspValue = csp(nonceValue);
   const requestHeaders = new Headers(request.headers);
-  const pathname = request.nextUrl.pathname;
 
   requestHeaders.set("x-nonce", nonceValue);
   requestHeaders.set("Content-Security-Policy", cspValue);
 
-  const hasLaravelSessionCookie = request.cookies.has(process.env.NEXT_PUBLIC_SESSION_COOKIE_NAME ?? "youpanel-session");
-  const response = isProtectedRoute(pathname) && !hasLaravelSessionCookie
-    ? NextResponse.redirect(new URL(`/login?returnTo=${encodeURIComponent(`${pathname}${request.nextUrl.search}`)}`, request.url), 307)
-    : NextResponse.next({
-        request: {
-          headers: requestHeaders,
-        },
-      });
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   response.headers.set("Content-Security-Policy", cspValue);
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");

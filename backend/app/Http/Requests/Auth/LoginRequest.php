@@ -6,6 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class LoginRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => str($this->input('email', ''))->trim()->lower()->toString(),
+        ]);
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -19,6 +26,7 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'email:rfc'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ];
     }
 }

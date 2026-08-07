@@ -15,6 +15,7 @@ import { safeReturnTo } from "@/lib/routing";
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email."),
   password: z.string().min(1, "Password is required."),
+  remember: z.boolean().optional(),
 });
 const challengeSchema = z.object({
   code: z.string().min(1, "Enter your authenticator or recovery code."),
@@ -37,25 +38,46 @@ function LoginPanel() {
   const queryClient = useQueryClient();
   const returnTo = safeReturnTo(params.get("returnTo"));
   const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
-  const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
+  const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "", remember: false } });
   const challengeForm = useForm<ChallengeValues>({ resolver: zodResolver(challengeSchema), defaultValues: { code: "" } });
+  const finishAuthentication = async (user: Awaited<ReturnType<typeof authApi.me>>) => {
+    queryClient.setQueryData(["auth", "me"], user);
+    await queryClient.invalidateQueries({ queryKey: ["auth", "me"], refetchType: "active" });
+    router.replace(returnTo);
+    router.refresh();
+  };
   const login = useMutation({
     mutationFn: authApi.login,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.type === "two_factor_required") {
         setRequiresTwoFactor(true);
         return;
       }
 
-      queryClient.setQueryData(["auth", "me"], result.user);
-      router.replace(returnTo);
+      await finishAuthentication(result.user);
+    },
+    onError: (error) => {
+      const normalized = normalizeApiError(error);
+      form.clearErrors();
+      for (const [field, messages] of Object.entries(normalized.fields)) {
+        if ((field === "email" || field === "password") && messages[0]) {
+          form.setError(field, { type: "server", message: messages[0] });
+        }
+      }
     },
   });
   const challenge = useMutation({
     mutationFn: (values: ChallengeValues) => authApi.twoFactorChallenge(values.code.includes("-") ? { recovery_code: values.code } : { code: values.code }),
-    onSuccess: (user) => {
-      queryClient.setQueryData(["auth", "me"], user);
-      router.replace(returnTo);
+    onSuccess: async (user) => {
+      await finishAuthentication(user);
+    },
+    onError: (error) => {
+      const normalized = normalizeApiError(error);
+      challengeForm.clearErrors();
+      const message = normalized.fields.code?.[0] ?? normalized.fields.recovery_code?.[0];
+      if (message) {
+        challengeForm.setError("code", { type: "server", message });
+      }
     },
   });
   const error = login.isError ? normalizeApiError(login.error) : challenge.isError ? normalizeApiError(challenge.error) : null;
@@ -89,6 +111,10 @@ function LoginPanel() {
             <label className="text-sm font-medium" htmlFor="password">Password</label>
             <Input id="password" type="password" autoComplete="current-password" className="mt-1" {...form.register("password")} />
             <p className="mt-1 min-h-5 text-xs text-danger">{form.formState.errors.password?.message}</p>
+            <label className="mb-4 flex items-center gap-2 text-sm text-muted">
+              <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" {...form.register("remember")} />
+              Keep me signed in
+            </label>
           </>
         )}
         {error ? <p className="mb-3 rounded-[var(--radius)] border border-danger/30 bg-danger/10 p-2 text-sm text-danger">{error.message}</p> : null}

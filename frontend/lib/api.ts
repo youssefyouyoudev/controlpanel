@@ -77,7 +77,7 @@ export const api = axios.create({
   baseURL: env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
   withXSRFToken: true,
-  headers: { Accept: "application/json" },
+  headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
 });
 
 export type LoginResult =
@@ -103,28 +103,46 @@ async function unwrap<T>(promise: Promise<AxiosResponse<Envelope<T>>>) {
   return response.data.data;
 }
 
+let csrfCookieReady = false;
+let csrfCookiePromise: Promise<void> | null = null;
+
 export async function csrfCookie() {
-  await api.get("/sanctum/csrf-cookie");
+  if (csrfCookieReady) {
+    return;
+  }
+
+  csrfCookiePromise ??= api.get("/sanctum/csrf-cookie")
+    .then(() => {
+      csrfCookieReady = true;
+    })
+    .finally(() => {
+      csrfCookiePromise = null;
+    });
+
+  await csrfCookiePromise;
 }
 
 export const authApi = {
-  async login(values: { email: string; password: string }): Promise<LoginResult> {
+  async login(values: { email: string; password: string; remember?: boolean }): Promise<LoginResult> {
     await csrfCookie();
     const data = await unwrap(api.post<Envelope<{ user?: User; requires_two_factor?: boolean }>>("/api/v1/auth/login", values));
     if (data.requires_two_factor) {
       return { type: "two_factor_required" };
     }
 
-    return { type: "authenticated", user: userSchema.parse(data.user) };
+    const user = await this.me();
+
+    return { type: "authenticated", user };
   },
   async twoFactorChallenge(values: { code?: string; recovery_code?: string }): Promise<User> {
     await csrfCookie();
-    const data = await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
-    return userSchema.parse(data.user);
+    await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
+    return this.me();
   },
   async logout() {
     await csrfCookie();
     await api.post("/api/v1/auth/logout");
+    csrfCookieReady = false;
   },
   async me() {
     const data = await unwrap(api.get<Envelope<{ user: User }>>("/api/v1/auth/user"));

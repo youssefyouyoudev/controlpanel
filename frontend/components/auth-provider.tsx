@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authApi, normalizeApiError } from "@/lib/api";
-import { isProtectedRoute } from "@/lib/routing";
+import { isProtectedRoute, safeReturnTo } from "@/lib/routing";
 import type { User } from "@/lib/schemas";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "error";
@@ -49,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (status === "authenticated" && pathname === "/login") {
-      router.replace("/dashboard");
+      router.replace(safeReturnTo(searchParams.get("returnTo")));
+      router.refresh();
     }
   }, [pathname, router, searchParams, status]);
 
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await authApi.logout();
         queryClient.clear();
         router.replace("/login");
+        router.refresh();
       },
     }),
     [queryClient, refetchUser, router, status, userQuery.data],

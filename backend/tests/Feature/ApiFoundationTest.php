@@ -34,10 +34,10 @@ it('returns public readiness and security headers', function (): void {
         ->assertJsonPath('data.ready', true);
 });
 
-it('logs in, records audit data, and exposes the current user', function (): void {
+it('logs in with normalized credentials, records audit data, and exposes the current user', function (): void {
     $user = User::factory()->owner()->create(['email' => 'owner@example.com', 'password' => Hash::make('CorrectPassword!123')]);
 
-    $this->postJson('/api/v1/auth/login', ['email' => 'owner@example.com', 'password' => 'CorrectPassword!123'])
+    $this->postJson('/api/v1/auth/login', ['email' => ' OWNER@example.com ', 'password' => 'CorrectPassword!123', 'remember' => true])
         ->assertOk()
         ->assertJsonPath('data.user.email', 'owner@example.com');
 
@@ -47,6 +47,26 @@ it('logs in, records audit data, and exposes the current user', function (): voi
     $this->getJson('/api/v1/auth/user')
         ->assertOk()
         ->assertJsonPath('data.user.role', UserRole::Owner->value);
+});
+
+it('returns validation errors for missing login fields', function (): void {
+    $this->postJson('/api/v1/auth/login', [])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'The given data was invalid.')
+        ->assertJsonValidationErrors(['email', 'password']);
+});
+
+it('returns cors headers on unauthenticated current-user responses', function (): void {
+    config()->set('cors.allowed_origins', ['https://control.youssefyouyou.com']);
+
+    $this->withHeaders([
+        'Origin' => 'https://control.youssefyouyou.com',
+        'Accept' => 'application/json',
+    ])
+        ->getJson('/api/v1/auth/user')
+        ->assertUnauthorized()
+        ->assertHeader('Access-Control-Allow-Origin', 'https://control.youssefyouyou.com')
+        ->assertHeader('Access-Control-Allow-Credentials', 'true');
 });
 
 it('requires two-factor challenge and accepts authenticator codes', function (): void {

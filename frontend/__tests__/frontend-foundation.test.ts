@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { api, normalizeApiError } from "@/lib/api";
+import { api, authApi, normalizeApiError } from "@/lib/api";
 import { buildBreadcrumbs, canOpenInEditor, fileIconKind, formatBytes, isConflictError, joinClientPath, rootModeLabel } from "@/lib/file-workspace";
 import { canRunAction, confirmationMode, executionHumanState } from "@/lib/operations";
 import { canManageServer, canManageUsers, canModifyAssignedWebsite } from "@/lib/permissions";
@@ -10,6 +10,10 @@ import { isProtectedRoute, safeReturnTo } from "@/lib/routing";
 import { loginSchema } from "@/app/(auth)/login/page";
 import { config as proxyConfig, proxy } from "@/proxy";
 import nextConfig from "@/next.config";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("login validation", () => {
   it("rejects invalid email and missing password", () => {
@@ -53,11 +57,11 @@ describe("csp proxy", () => {
     expect(first.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
-  it("redirects obviously unauthenticated protected documents without trusting cookies as auth", () => {
+  it("does not treat missing frontend-domain cookies as proof of logout", () => {
     const response = proxy(new NextRequest("http://localhost:3000/dashboard?tab=metrics"));
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost:3000/login?returnTo=%2Fdashboard%3Ftab%3Dmetrics");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("Content-Security-Policy")).toContain("script-src 'self' 'nonce-");
   });
 
@@ -131,6 +135,42 @@ describe("api error normalization", () => {
   it("configures Sanctum cookies and XSRF headers for cross-origin browser requests", () => {
     expect(api.defaults.withCredentials).toBe(true);
     expect(api.defaults.withXSRFToken).toBe(true);
+    expect((api.defaults.headers as Record<string, unknown>)["X-Requested-With"]).toBe("XMLHttpRequest");
+  });
+
+  it("confirms successful login through the current-user endpoint before reporting authenticated", async () => {
+    const user = {
+      id: 1,
+      name: "Youssef",
+      email: "youssef@example.com",
+      role: "owner",
+      avatar_url: null,
+      is_active: true,
+      timezone: "UTC",
+      two_factor_enabled: false,
+      last_login_at: null,
+      email_verified_at: null,
+    };
+    const calls: string[] = [];
+
+    vi.spyOn(api, "get").mockImplementation(async (url) => {
+      calls.push(`GET ${url}`);
+      if (url === "/sanctum/csrf-cookie") {
+        return { data: null } as never;
+      }
+
+      return { data: { ok: true, message: "OK", data: { user }, meta: {}, errors: null } } as never;
+    });
+    vi.spyOn(api, "post").mockImplementation(async (url) => {
+      calls.push(`POST ${url}`);
+      return { data: { ok: true, message: "Logged in.", data: { user }, meta: {}, errors: null } } as never;
+    });
+
+    await expect(authApi.login({ email: "youssef@example.com", password: "secret", remember: true })).resolves.toEqual({
+      type: "authenticated",
+      user,
+    });
+    expect(calls).toEqual(["GET /sanctum/csrf-cookie", "POST /api/v1/auth/login", "GET /api/v1/auth/user"]);
   });
 
   it("normalizes unknown client errors", () => {
