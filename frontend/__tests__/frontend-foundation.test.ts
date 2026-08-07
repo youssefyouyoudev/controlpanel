@@ -161,7 +161,7 @@ describe("api error normalization", () => {
     expect((api.defaults.headers as Record<string, unknown>)["X-Requested-With"]).toBe("XMLHttpRequest");
   });
 
-  it("confirms successful login through the current-user endpoint before reporting authenticated", async () => {
+  it("reports authenticated from the login response without requiring an immediate current-user refetch", async () => {
     const user = {
       id: 1,
       name: "Youssef",
@@ -195,7 +195,7 @@ describe("api error normalization", () => {
       type: "authenticated",
       user,
     });
-    expect(calls).toEqual(["GET /sanctum/csrf-cookie", "POST /api/v1/auth/login", "GET /api/v1/auth/user"]);
+    expect(calls).toEqual(["GET /sanctum/csrf-cookie", "POST /api/v1/auth/login"]);
   });
 
   it("refreshes the CSRF cookie and retries one unsafe request after a 419", async () => {
@@ -234,10 +234,6 @@ describe("api error normalization", () => {
         throw new AxiosError("CSRF token mismatch.", "ERR_BAD_REQUEST", request, undefined, response);
       }
 
-      if (request.url === "/api/v1/auth/user") {
-        return { data: { ok: true, message: "OK", data: { user }, meta: {}, errors: null }, status: 200, statusText: "OK", headers: {}, config: request } satisfies AxiosResponse;
-      }
-
       return { data: { ok: true, message: "Logged in.", data: { user }, meta: {}, errors: null }, status: 200, statusText: "OK", headers: {}, config: request } satisfies AxiosResponse;
     };
 
@@ -251,7 +247,6 @@ describe("api error normalization", () => {
         "POST /api/v1/auth/login",
         "GET /sanctum/csrf-cookie",
         "POST /api/v1/auth/login",
-        "GET /api/v1/auth/user",
       ]);
     } finally {
       api.defaults.adapter = originalAdapter;

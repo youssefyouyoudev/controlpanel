@@ -41,8 +41,8 @@ function LoginPanel() {
   const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "", remember: false } });
   const challengeForm = useForm<ChallengeValues>({ resolver: zodResolver(challengeSchema), defaultValues: { code: "" } });
   const finishAuthentication = async (user: Awaited<ReturnType<typeof authApi.me>>) => {
+    await queryClient.cancelQueries({ queryKey: ["auth", "me"] });
     queryClient.setQueryData(["auth", "me"], user);
-    await queryClient.invalidateQueries({ queryKey: ["auth", "me"], refetchType: "active" });
     router.replace(returnTo);
     router.refresh();
   };

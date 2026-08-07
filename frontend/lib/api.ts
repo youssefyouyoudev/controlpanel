@@ -185,14 +185,12 @@ export const authApi = {
       return { type: "two_factor_required" };
     }
 
-    const user = await authApi.me();
-
-    return { type: "authenticated", user };
+    return { type: "authenticated", user: userSchema.parse(data.user) };
   },
   async twoFactorChallenge(values: { code?: string; recovery_code?: string }): Promise<User> {
     await csrfCookie({ force: true });
-    await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
-    return authApi.me();
+    const data = await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
+    return userSchema.parse(data.user);
   },
   async logout() {
     await csrfCookie();
