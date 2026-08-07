@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\TrustedProxyConfiguration;
 use Illuminate\Console\Command;
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Facades\Cache;
@@ -28,7 +29,7 @@ class ProductionCheckCommand extends Command
             $this->check('session_secure_cookie', app()->isLocal() || (bool) config('session.secure'), 'critical', 'SESSION_SECURE_COOKIE should be true outside local development.'),
             $this->check('session_domain', app()->isLocal() || config('session.domain') === '.youssefyouyou.com', 'critical', 'SESSION_DOMAIN should be .youssefyouyou.com for shared control/control-api cookies.'),
             $this->check('session_same_site', strtolower((string) config('session.same_site')) === 'lax', 'warning', 'SESSION_SAME_SITE should remain lax for the two YouPanel subdomains.'),
-            $this->check('trusted_proxies', app()->isLocal() || filled(env('TRUSTED_PROXIES')), 'critical', 'TRUSTED_PROXIES should be configured behind Cloudflare/Nginx, for example REMOTE_ADDR.'),
+            $this->check('trusted_proxies', app()->isLocal() || TrustedProxyConfiguration::configured(), 'critical', 'TRUSTED_PROXIES should be configured behind Cloudflare/Nginx, for example REMOTE_ADDR.'),
             $this->check('sanctum_stateful_frontend', in_array('control.youssefyouyou.com', config('sanctum.stateful', []), true), 'critical', 'SANCTUM_STATEFUL_DOMAINS must include control.youssefyouyou.com.'),
             $this->check('cors_credentials', (bool) config('cors.supports_credentials') && in_array('https://control.youssefyouyou.com', config('cors.allowed_origins', []), true), 'critical', 'CORS must allow https://control.youssefyouyou.com with credentials.'),
             $this->safeCheck('database', 'critical', fn (): bool => DB::select('select 1') !== []),

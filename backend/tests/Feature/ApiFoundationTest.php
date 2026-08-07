@@ -11,7 +11,9 @@ use App\Services\Metrics\MockServerMetricsProvider;
 use App\Services\Metrics\ServerMetricsProvider;
 use App\Services\ServiceStatusService;
 use App\Support\SanctumStatefulDomains;
+use App\Support\TrustedProxyConfiguration;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -91,6 +93,20 @@ it('treats the production frontend origin as a stateful sanctum request', functi
     ]);
 
     expect(EnsureFrontendRequestsAreStateful::fromFrontend($request))->toBeTrue();
+});
+
+it('detects trusted proxy middleware configuration without reading runtime env', function (): void {
+    TrustProxies::flushState();
+
+    expect(TrustedProxyConfiguration::configured())->toBeFalse();
+
+    TrustProxies::at('REMOTE_ADDR');
+
+    try {
+        expect(TrustedProxyConfiguration::configured())->toBeTrue();
+    } finally {
+        TrustProxies::flushState();
+    }
 });
 
 it('requires two-factor challenge and accepts authenticator codes', function (): void {
