@@ -25,12 +25,12 @@ Conceptually:
 ```text
 script-src 'self' 'nonce-{requestNonce}' 'strict-dynamic'
 style-src 'self'
-style-src-elem 'self' 'nonce-{requestNonce}'
+style-src-elem 'self' 'unsafe-inline'
 style-src-attr 'unsafe-inline'
 worker-src 'self' blob:
 ```
 
-`style-src-attr 'unsafe-inline'` is intentionally split from `style-src-elem`. CSP nonces authorize `<style>` elements, not React style attributes. Motion-driven UI transitions and some browser-controlled component styling require style attributes, while injected style elements still require the request nonce.
+Style directives are intentionally split from script directives. Scripts remain nonce-based and do not allow production `unsafe-inline`. Runtime CSS inserted by Next.js/font/UI tooling can create inline `<style>` elements that do not receive the request nonce, so `style-src-elem` allows inline styles. React/Motion style attributes are isolated under `style-src-attr`.
 
 ## Monaco
 

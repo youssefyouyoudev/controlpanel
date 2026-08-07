@@ -37,7 +37,7 @@ That API CSP was not the source of the frontend hydration failure.
 - Read `x-nonce` in `app/layout.tsx`.
 - Passed the nonce to `next-themes`.
 - Disabled `next-themes` inline `color-scheme` writes because YouPanel already defines `color-scheme` in CSS.
-- Split `style-src-elem` from `style-src-attr` so nonced style elements and React/Motion style attributes use the correct CSP directives.
+- Split script and style policy so scripts remain nonce-based while runtime-created style elements and React/Motion style attributes are allowed by style-specific directives.
 - Replaced `/` dashboard redirect with a public landing page.
 - Added route classification and safe `returnTo` handling.
 

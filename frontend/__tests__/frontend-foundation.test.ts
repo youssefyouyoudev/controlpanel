@@ -45,7 +45,7 @@ describe("csp proxy", () => {
     expect(secondNonce).toBeTruthy();
     expect(firstNonce).not.toBe(secondNonce);
     expect(firstCsp).toContain("script-src 'self' 'nonce-");
-    expect(firstCsp).toContain("style-src-elem 'self' 'nonce-");
+    expect(firstCsp).toContain("style-src-elem 'self' 'unsafe-inline'");
     expect(firstCsp).toContain("style-src-attr 'unsafe-inline'");
     expect(firstCsp).toContain("'strict-dynamic'");
     expect(firstCsp).not.toContain("script-src 'self' 'unsafe-inline'");

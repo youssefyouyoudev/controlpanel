@@ -13,7 +13,7 @@
 - API security headers are applied by Laravel middleware.
 - Frontend document security headers are applied by `frontend/proxy.ts` with a per-request CSP nonce.
 - Production frontend `script-src` does not use `unsafe-inline`; local development keeps only the minimum Next.js dev allowances.
-- Style elements require the request nonce. Style attributes are isolated under `style-src-attr` because CSP nonces do not authorize attributes and the UI uses React/Motion style attributes for legitimate presentation.
+- Style directives are separate from script directives. Runtime style elements and React/Motion style attributes are allowed for legitimate presentation, while production scripts remain nonce-based.
 - Portfolio demo mode is read-only only when explicitly enabled and must remain disabled on the real private control panel.
 - Owners can see all websites and global audit records.
 - Developers, editors, and viewers see only assigned websites.

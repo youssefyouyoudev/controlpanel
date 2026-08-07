@@ -22,7 +22,7 @@ function csp(nonceValue: string) {
     "form-action 'self'",
     `script-src 'self' 'nonce-${nonceValue}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self'",
-    `style-src-elem 'self' 'nonce-${nonceValue}'`,
+    "style-src-elem 'self' 'unsafe-inline'",
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",

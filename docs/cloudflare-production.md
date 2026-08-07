@@ -49,3 +49,4 @@ The cookie name is public routing metadata, not a secret. The cookie value remai
 - Do not forward the Docker socket, database ports, Redis, PM2 control ports or private Laravel storage.
 - Keep real Coolify API tokens only in `backend/.env`.
 - Keep frontend CSP in `frontend/proxy.ts`; do not add production `script-src 'unsafe-inline'`.
+- If the browser reports CORS while `curl -I https://control-api.youssefyouyou.com/...` returns Cloudflare `502`, fix the API tunnel/upstream first. Laravel cannot add CORS headers to a response Cloudflare generates before reaching Laravel.
