@@ -1,12 +1,15 @@
 <?php
 
-$frontendOrigins = array_values(array_filter(array_map('trim', explode(',', (string) env('FRONTEND_URLS', '')))));
+$frontendOrigins = array_values(array_filter(array_map(
+    fn (string $origin): string => rtrim(trim($origin), '/'),
+    explode(',', (string) env('FRONTEND_URLS', ''))
+)));
 
 if ($frontendOrigins === []) {
     $isProduction = env('APP_ENV') === 'production';
 
     $frontendOrigins = array_values(array_unique(array_filter([
-        env('FRONTEND_URL', 'http://localhost:3000'),
+        rtrim((string) env('FRONTEND_URL', 'http://localhost:3000'), '/'),
         $isProduction ? null : 'http://localhost:3000',
         $isProduction ? null : 'http://127.0.0.1:3000',
     ])));

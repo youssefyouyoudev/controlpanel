@@ -7,10 +7,10 @@ function nonce() {
 function csp(nonceValue: string) {
   const isDev = process.env.NODE_ENV === "development";
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-  const connectSources = ["'self'", apiUrl, "http://localhost:8000", "http://127.0.0.1:8000"];
+  const connectSources = ["'self'", apiUrl];
 
   if (isDev) {
-    connectSources.push("http://localhost:3000", "http://127.0.0.1:3000", "ws://localhost:3000", "ws://127.0.0.1:3000");
+    connectSources.push("http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000", "http://127.0.0.1:3000", "ws://localhost:3000", "ws://127.0.0.1:3000");
   }
 
   const directives = [

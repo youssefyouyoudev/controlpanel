@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { api, authApi, normalizeApiError } from "@/lib/api";
@@ -63,6 +64,26 @@ describe("csp proxy", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("Content-Security-Policy")).toContain("script-src 'self' 'nonce-");
+  });
+
+  it("keeps production connect-src limited to the configured API origin", () => {
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "https://control-api.youssefyouyou.com";
+
+    try {
+      const response = proxy(new NextRequest("https://control.youssefyouyou.com/dashboard"));
+      const csp = response.headers.get("Content-Security-Policy") ?? "";
+
+      expect(csp).toContain("connect-src 'self' https://control-api.youssefyouyou.com");
+      expect(csp).not.toContain("http://localhost:8000");
+      expect(csp).not.toContain("http://127.0.0.1:8000");
+    } finally {
+      if (previousApiUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_API_URL;
+      } else {
+        process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+      }
+    }
   });
 
   it("matches document routes and skips static assets", () => {
@@ -135,6 +156,8 @@ describe("api error normalization", () => {
   it("configures Sanctum cookies and XSRF headers for cross-origin browser requests", () => {
     expect(api.defaults.withCredentials).toBe(true);
     expect(api.defaults.withXSRFToken).toBe(true);
+    expect(api.defaults.xsrfCookieName).toBe("XSRF-TOKEN");
+    expect(api.defaults.xsrfHeaderName).toBe("X-XSRF-TOKEN");
     expect((api.defaults.headers as Record<string, unknown>)["X-Requested-With"]).toBe("XMLHttpRequest");
   });
 
@@ -173,6 +196,66 @@ describe("api error normalization", () => {
       user,
     });
     expect(calls).toEqual(["GET /sanctum/csrf-cookie", "POST /api/v1/auth/login", "GET /api/v1/auth/user"]);
+  });
+
+  it("refreshes the CSRF cookie and retries one unsafe request after a 419", async () => {
+    const originalAdapter = api.defaults.adapter;
+    const calls: string[] = [];
+    const user = {
+      id: 1,
+      name: "Youssef",
+      email: "youssef@example.com",
+      role: "owner",
+      avatar_url: null,
+      is_active: true,
+      timezone: "UTC",
+      two_factor_enabled: false,
+      last_login_at: null,
+      email_verified_at: null,
+    };
+
+    api.defaults.adapter = async (config) => {
+      const request = config as InternalAxiosRequestConfig;
+      calls.push(`${request.method?.toUpperCase()} ${request.url}`);
+
+      if (request.url === "/sanctum/csrf-cookie") {
+        return { data: null, status: 204, statusText: "No Content", headers: {}, config: request } satisfies AxiosResponse;
+      }
+
+      if (request.url === "/api/v1/auth/login" && calls.filter((call) => call === "POST /api/v1/auth/login").length === 1) {
+        const response = {
+          data: { ok: false, message: "CSRF token mismatch.", data: null, meta: {}, errors: {} },
+          status: 419,
+          statusText: "CSRF token mismatch.",
+          headers: {},
+          config: request,
+        } satisfies AxiosResponse;
+
+        throw new AxiosError("CSRF token mismatch.", "ERR_BAD_REQUEST", request, undefined, response);
+      }
+
+      if (request.url === "/api/v1/auth/user") {
+        return { data: { ok: true, message: "OK", data: { user }, meta: {}, errors: null }, status: 200, statusText: "OK", headers: {}, config: request } satisfies AxiosResponse;
+      }
+
+      return { data: { ok: true, message: "Logged in.", data: { user }, meta: {}, errors: null }, status: 200, statusText: "OK", headers: {}, config: request } satisfies AxiosResponse;
+    };
+
+    try {
+      await expect(authApi.login({ email: "youssef@example.com", password: "secret" })).resolves.toEqual({
+        type: "authenticated",
+        user,
+      });
+      expect(calls).toEqual([
+        "GET /sanctum/csrf-cookie",
+        "POST /api/v1/auth/login",
+        "GET /sanctum/csrf-cookie",
+        "POST /api/v1/auth/login",
+        "GET /api/v1/auth/user",
+      ]);
+    } finally {
+      api.defaults.adapter = originalAdapter;
+    }
   });
 
   it("normalizes unknown client errors", () => {

@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosResponse } from "axios";
+import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { ZodError } from "zod";
 import { env } from "@/lib/env";
 import {
@@ -75,11 +75,17 @@ type Envelope<T> = {
 };
 
 export const api = axios.create({
-  baseURL: env.NEXT_PUBLIC_API_URL,
+  baseURL: env.NEXT_PUBLIC_API_URL.replace(/\/+$/, ""),
   withCredentials: true,
   withXSRFToken: true,
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
   headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
 });
+
+type CsrfRetryConfig = InternalAxiosRequestConfig & {
+  _csrfRetry?: boolean;
+};
 
 export type LoginResult =
   | { type: "authenticated"; user: User }
@@ -118,7 +124,12 @@ async function unwrap<T>(promise: Promise<AxiosResponse<Envelope<T>>>) {
 let csrfCookieReady = false;
 let csrfCookiePromise: Promise<void> | null = null;
 
-export async function csrfCookie() {
+export async function csrfCookie(options: { force?: boolean } = {}) {
+  if (options.force) {
+    csrfCookieReady = false;
+    csrfCookiePromise = null;
+  }
+
   if (csrfCookieReady) {
     return;
   }
@@ -134,9 +145,41 @@ export async function csrfCookie() {
   await csrfCookiePromise;
 }
 
+api.interceptors.response.use(undefined, async (error: unknown) => {
+  if (!axios.isAxiosError(error)) {
+    return Promise.reject(error);
+  }
+
+  if (error.response?.status === 419) {
+    csrfCookieReady = false;
+  }
+
+  const originalRequest = error.config as CsrfRetryConfig | undefined;
+  const method = originalRequest?.method?.toLowerCase();
+  const shouldRetry = error.response?.status === 419
+    && originalRequest
+    && !originalRequest._csrfRetry
+    && Boolean(method)
+    && !["get", "head", "options"].includes(method ?? "")
+    && originalRequest.url !== "/sanctum/csrf-cookie";
+
+  if (!shouldRetry || !originalRequest) {
+    return Promise.reject(error);
+  }
+
+  originalRequest._csrfRetry = true;
+
+  try {
+    await csrfCookie({ force: true });
+    return api.request(originalRequest);
+  } catch {
+    return Promise.reject(error);
+  }
+});
+
 export const authApi = {
   async login(values: { email: string; password: string; remember?: boolean }): Promise<LoginResult> {
-    await csrfCookie();
+    await csrfCookie({ force: true });
     const data = await unwrap(api.post<Envelope<{ user?: User; requires_two_factor?: boolean }>>("/api/v1/auth/login", values));
     if (data.requires_two_factor) {
       return { type: "two_factor_required" };
@@ -147,7 +190,7 @@ export const authApi = {
     return { type: "authenticated", user };
   },
   async twoFactorChallenge(values: { code?: string; recovery_code?: string }): Promise<User> {
-    await csrfCookie();
+    await csrfCookie({ force: true });
     await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
     return authApi.me();
   },
