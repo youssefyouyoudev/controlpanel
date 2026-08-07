@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, type AxiosResponse } from "axios";
 import { ZodError } from "zod";
 import { env } from "@/lib/env";
 import {
@@ -83,10 +83,6 @@ export const api = axios.create({
   headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
 });
 
-type CsrfRetryConfig = InternalAxiosRequestConfig & {
-  _csrfRetry?: boolean;
-};
-
 export type LoginResult =
   | { type: "authenticated"; user: User }
   | { type: "two_factor_required" };
@@ -94,9 +90,12 @@ export type LoginResult =
 export function normalizeApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<Envelope<null>>;
+    const status = axiosError.response?.status ?? 0;
     return {
-      status: axiosError.response?.status ?? 0,
-      message: axiosError.response?.data?.message ?? "Unable to reach YouPanel API.",
+      status,
+      message: status === 419
+        ? "CSRF token mismatch. Refresh the page and sign in again."
+        : axiosError.response?.data?.message ?? "Unable to reach YouPanel API.",
       fields: axiosError.response?.data?.errors ?? {},
       requestId: axiosError.response?.data?.meta?.request_id,
     };
@@ -145,38 +144,6 @@ export async function csrfCookie(options: { force?: boolean } = {}) {
   await csrfCookiePromise;
 }
 
-api.interceptors.response.use(undefined, async (error: unknown) => {
-  if (!axios.isAxiosError(error)) {
-    return Promise.reject(error);
-  }
-
-  if (error.response?.status === 419) {
-    csrfCookieReady = false;
-  }
-
-  const originalRequest = error.config as CsrfRetryConfig | undefined;
-  const method = originalRequest?.method?.toLowerCase();
-  const shouldRetry = error.response?.status === 419
-    && originalRequest
-    && !originalRequest._csrfRetry
-    && Boolean(method)
-    && !["get", "head", "options"].includes(method ?? "")
-    && originalRequest.url !== "/sanctum/csrf-cookie";
-
-  if (!shouldRetry || !originalRequest) {
-    return Promise.reject(error);
-  }
-
-  originalRequest._csrfRetry = true;
-
-  try {
-    await csrfCookie({ force: true });
-    return api.request(originalRequest);
-  } catch {
-    return Promise.reject(error);
-  }
-});
-
 export const authApi = {
   async login(values: { email: string; password: string; remember?: boolean }): Promise<LoginResult> {
     await csrfCookie({ force: true });
@@ -185,12 +152,13 @@ export const authApi = {
       return { type: "two_factor_required" };
     }
 
-    return { type: "authenticated", user: userSchema.parse(data.user) };
+    const user = await authApi.me();
+    return { type: "authenticated", user };
   },
   async twoFactorChallenge(values: { code?: string; recovery_code?: string }): Promise<User> {
     await csrfCookie({ force: true });
-    const data = await unwrap(api.post<Envelope<{ user: User }>>("/api/v1/auth/two-factor-challenge", values));
-    return userSchema.parse(data.user);
+    await unwrap(api.post<Envelope<{ user?: User }>>("/api/v1/auth/two-factor-challenge", values));
+    return authApi.me();
   },
   async logout() {
     await csrfCookie();

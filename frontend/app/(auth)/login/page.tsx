@@ -86,7 +86,17 @@ function LoginPanel() {
     <main className="grid min-h-screen place-items-center px-6">
       <form
         className="w-full max-w-sm rounded-[var(--radius)] border border-border bg-panel p-6 shadow-sm"
-        onSubmit={requiresTwoFactor ? challengeForm.handleSubmit((values) => challenge.mutate(values)) : form.handleSubmit((values) => login.mutate(values))}
+        onSubmit={requiresTwoFactor
+          ? challengeForm.handleSubmit((values) => {
+            if (!challenge.isPending) {
+              challenge.mutate(values);
+            }
+          })
+          : form.handleSubmit((values) => {
+            if (!login.isPending) {
+              login.mutate(values);
+            }
+          })}
       >
         <div className="mb-6 flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-[var(--radius)] bg-accent text-accent-foreground">

@@ -52,7 +52,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, status, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
-  const notifications = useQuery({ queryKey: ["notifications"], queryFn: notificationApi.list, enabled: Boolean(user), refetchInterval: 15000 });
+  const notifications = useQuery({
+    queryKey: ["notifications"],
+    queryFn: notificationApi.list,
+    enabled: status === "authenticated",
+    refetchInterval: status === "authenticated" ? 15000 : false,
+  });
   const visibleItems = navItems.filter((item) => !item.ownerOnly || canManageServer(user?.role));
 
   if (status === "loading") {

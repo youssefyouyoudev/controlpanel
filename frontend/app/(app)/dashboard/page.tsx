@@ -13,14 +13,15 @@ import { dashboardApi, normalizeApiError } from "@/lib/api";
 import { formatBytes, formatPercent } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const summary = useQuery({
     queryKey: ["dashboard", "summary"],
     queryFn: dashboardApi.summary,
-    refetchInterval: 30_000,
+    enabled: isAuthenticated,
+    refetchInterval: isAuthenticated ? 30_000 : false,
   });
 
-  if (summary.isLoading) {
+  if (isLoading || !isAuthenticated || summary.isLoading) {
     return <DashboardSkeleton />;
   }
 

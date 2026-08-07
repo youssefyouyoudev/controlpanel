@@ -6,7 +6,7 @@ function nonce() {
 
 function csp(nonceValue: string) {
   const isDev = process.env.NODE_ENV === "development";
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? (isDev ? "http://localhost:8000" : "https://control-api.youssefyouyou.com");
   const connectSources = ["'self'", apiUrl];
 
   if (isDev) {
