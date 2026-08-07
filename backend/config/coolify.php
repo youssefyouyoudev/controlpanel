@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'enabled' => (bool) env('COOLIFY_ENABLED', false),
+    'driver' => env('COOLIFY_DRIVER', env('COOLIFY_ENABLED', false) ? 'api' : 'mock'),
+    'internal_url' => env('COOLIFY_INTERNAL_URL', 'http://127.0.0.1:8000'),
+    'public_url' => env('COOLIFY_PUBLIC_URL', 'https://panel.youssefyouyou.com'),
+    'api_token' => env('COOLIFY_API_TOKEN'),
+    'verify_tls' => (bool) env('COOLIFY_VERIFY_TLS', true),
+    'timeout_seconds' => (int) env('COOLIFY_TIMEOUT_SECONDS', 15),
+    'connect_timeout_seconds' => (int) env('COOLIFY_CONNECT_TIMEOUT_SECONDS', 5),
+    'cache_seconds' => (int) env('COOLIFY_CACHE_SECONDS', 15),
+    'max_retries' => (int) env('COOLIFY_MAX_RETRIES', 2),
+    'terminal_enabled' => (bool) env('COOLIFY_TERMINAL_ENABLED', false),
+    'sync_interval_seconds' => (int) env('COOLIFY_SYNC_INTERVAL_SECONDS', 300),
+    'status_cache_seconds' => (int) env('COOLIFY_STATUS_CACHE_SECONDS', 15),
+    'deployment_poll_min_seconds' => (int) env('COOLIFY_DEPLOYMENT_POLL_MIN_SECONDS', 5),
+    'deployment_poll_max_seconds' => (int) env('COOLIFY_DEPLOYMENT_POLL_MAX_SECONDS', 60),
+    'deployment_timeout_minutes' => (int) env('COOLIFY_DEPLOYMENT_TIMEOUT_MINUTES', 30),
+    'max_concurrent_deployments' => (int) env('COOLIFY_MAX_CONCURRENT_DEPLOYMENTS', 2),
+    'log_max_bytes' => (int) env('COOLIFY_LOG_MAX_BYTES', 524288),
+    'log_retention_days' => (int) env('COOLIFY_LOG_RETENTION_DAYS', 14),
+    'console_command_timeout_seconds' => (int) env('CONSOLE_COMMAND_TIMEOUT_SECONDS', 120),
+    'console_output_max_bytes' => (int) env('CONSOLE_OUTPUT_MAX_BYTES', 262144),
+    'console_max_concurrent_per_user' => (int) env('CONSOLE_MAX_CONCURRENT_PER_USER', 1),
+    'container_terminal_idle_minutes' => (int) env('CONTAINER_TERMINAL_IDLE_MINUTES', 10),
+    'container_terminal_max_minutes' => (int) env('CONTAINER_TERMINAL_MAX_MINUTES', 30),
+];

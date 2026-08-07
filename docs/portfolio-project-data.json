@@ -1,0 +1,39 @@
+{
+  "name": "YouPanel",
+  "type": "Private personal server cockpit",
+  "status": "Phase 5 locally verified foundation",
+  "domains": {
+    "frontend": "https://control.youssefyouyou.com",
+    "api": "https://control-api.youssefyouyou.com",
+    "coolify": "https://panel.youssefyouyou.com"
+  },
+  "stack": [
+    "Laravel 12",
+    "PHP 8.3-compatible",
+    "MySQL",
+    "Laravel Sanctum",
+    "Next.js 16 App Router",
+    "TypeScript",
+    "Tailwind CSS",
+    "TanStack Query",
+    "Zod",
+    "Pest",
+    "Vitest"
+  ],
+  "security_highlights": [
+    "No public registration",
+    "Session-cookie authentication",
+    "TOTP two-factor authentication",
+    "Role and membership authorization",
+    "Backend-only Coolify tokens",
+    "Allowlisted console/action execution",
+    "Read-only production checks"
+  ],
+  "postponed": [
+    "Production deployment",
+    "Browser E2E automation",
+    "Real Coolify token validation",
+    "Webhook ingestion",
+    "Rollback workflows"
+  ]
+}

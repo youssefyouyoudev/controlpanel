@@ -1,0 +1,51 @@
+<?php
+
+return [
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+    'metrics_driver' => env('YOUPANEL_METRICS_DRIVER', env('APP_ENV') === 'testing' ? 'mock' : 'auto'),
+    'service_status_driver' => env('YOUPANEL_SERVICE_STATUS_DRIVER', env('APP_ENV') === 'testing' ? 'mock' : 'auto'),
+    'demo_enabled' => env('YOUPANEL_DEMO_ENABLED', false),
+    'portfolio_demo' => env('YOUPANEL_PORTFOLIO_DEMO', false),
+    'files' => [
+        'max_edit_bytes' => (int) env('FILE_MAX_EDIT_BYTES', 512 * 1024),
+        'max_upload_bytes' => (int) env('FILE_MAX_UPLOAD_BYTES', 10 * 1024 * 1024),
+        'max_download_bytes' => (int) env('FILE_MAX_DOWNLOAD_BYTES', 100 * 1024 * 1024),
+        'max_directory_items' => (int) env('FILE_MAX_DIRECTORY_ITEMS', 500),
+        'max_search_results' => (int) env('FILE_MAX_SEARCH_RESULTS', 100),
+        'max_recursive_items' => (int) env('FILE_MAX_RECURSIVE_ITEMS', 1000),
+        'max_recursive_bytes' => (int) env('FILE_MAX_RECURSIVE_BYTES', 50 * 1024 * 1024),
+        'archive_max_files' => (int) env('FILE_MAX_ARCHIVE_FILES', 500),
+        'archive_max_uncompressed_bytes' => (int) env('FILE_MAX_ARCHIVE_UNCOMPRESSED_BYTES', 50 * 1024 * 1024),
+        'archive_max_ratio' => (float) env('FILE_MAX_ARCHIVE_RATIO', 100),
+        'revision_max_bytes' => (int) env('FILE_REVISION_MAX_BYTES', 512 * 1024),
+        'revisions_per_file' => (int) env('FILE_REVISION_MAX_PER_FILE', 25),
+        'revision_retention_days' => (int) env('FILE_REVISION_RETENTION_DAYS', 30),
+        'trash_retention_days' => (int) env('TRASH_RETENTION_DAYS', 30),
+    ],
+    'operations' => [
+        'output_max_bytes' => (int) env('ACTION_OUTPUT_MAX_BYTES', 1024 * 1024),
+        'output_preview_bytes' => (int) env('ACTION_OUTPUT_PREVIEW_BYTES', 12000),
+        'default_timeout_seconds' => (int) env('ACTION_DEFAULT_TIMEOUT_SECONDS', 120),
+        'max_concurrent_global' => (int) env('ACTION_MAX_CONCURRENT_GLOBAL', 3),
+        'max_concurrent_per_website' => (int) env('ACTION_MAX_CONCURRENT_PER_WEBSITE', 1),
+        'safe_environment' => array_filter(array_map('trim', explode(',', env('ACTION_SAFE_ENV_KEYS', 'HOME,PATH,COMPOSER_HOME,NPM_CONFIG_CACHE')))),
+    ],
+    'logs' => [
+        'initial_lines' => (int) env('LOG_INITIAL_LINES', 200),
+        'max_lines' => (int) env('LOG_MAX_LINES', 500),
+        'stream_max_minutes' => (int) env('LOG_STREAM_MAX_MINUTES', 10),
+        'download_max_bytes' => (int) env('LOG_DOWNLOAD_MAX_BYTES', 5 * 1024 * 1024),
+    ],
+    'backups' => [
+        'max_bytes' => (int) env('BACKUP_MAX_BYTES', 250 * 1024 * 1024),
+        'min_free_disk_bytes' => (int) env('BACKUP_MIN_FREE_DISK_BYTES', 1024 * 1024 * 1024),
+        'retention_days' => (int) env('BACKUP_RETENTION_DAYS', 30),
+        'storage_disk' => env('BACKUP_STORAGE_DISK', 'local'),
+        'exclude' => ['.git', 'node_modules', 'vendor', '.next', 'storage/logs', 'storage/framework/cache', 'tmp', 'temp', 'backups'],
+    ],
+    'health' => [
+        'timeout_seconds' => (int) env('HEALTH_CHECK_TIMEOUT_SECONDS', 5),
+        'max_response_bytes' => (int) env('HEALTH_CHECK_MAX_RESPONSE_BYTES', 32768),
+        'failure_threshold' => (int) env('HEALTH_CHECK_FAILURE_THRESHOLD', 2),
+    ],
+];

@@ -1,0 +1,25 @@
+# Assumptions
+
+- Phase 1 is local-only. No production Nginx, Cloudflare Tunnel, Docker, Coolify, firewall, systemd, or `/etc` configuration was changed.
+- The workspace already contained fresh Laravel and Next.js skeletons, so implementation preserved those applications rather than replacing them.
+- MySQL is the intended production database, but automated tests use SQLite in memory through `phpunit.xml`.
+- Local MySQL migrations were executed with `php artisan migrate:fresh --no-interaction` during Phase 4 verification, which reset the local `panels` database.
+- Linux host metrics are read from safe `/proc` files only when running on Linux. Windows/macOS development receives unavailable or mock-safe states.
+- Demo data is opt-in through `YOUPANEL_DEMO_ENABLED=true`; production must keep it disabled.
+- Phase 2 file roots are configured manually by the owner. YouPanel does not discover project directories automatically.
+- Demo file roots use local Laravel storage so local testing never needs `/var/www` to exist.
+- ZIP extraction is limited to ordinary files and directories; symlink entries are rejected when PHP exposes their attributes.
+- Browser file management intentionally avoids terminals, `sudo`, service restarts, production Nginx/Coolify edits and arbitrary command execution.
+- Phase 3 process execution is mock-by-default outside production to avoid accidental local or production mutations.
+- Service restart/reload actions are represented as disabled catalog entries until a narrow privileged helper is designed.
+- Restore currently stages and verifies backups; production overwrite/swap behavior is intentionally postponed.
+- Health checks reject private/local targets by default to reduce SSRF risk.
+- Phase 4 verified Coolify capabilities from the official `v4.x` OpenAPI source and documents unsupported terminal, rollback and webhook capabilities as unavailable.
+- `MockCoolifyClient` is the default for local development and automated tests.
+- Real Coolify API access should use the internal URL when Laravel runs on the same server.
+- Resource linking is manual; name/domain matches are suggestions only, not automatic mappings.
+- Phase 5 remained local-only and did not deploy to production.
+- Production Nginx, Cloudflare Tunnel, Coolify, Docker, systemd, firewall, sudoers and `/etc` changes are reserved for a later deployment phase.
+- Two-factor authentication assumes a stateful Sanctum browser session between password login and TOTP challenge.
+- Portfolio demo mode is intended for a separate read-only showcase environment, not the real private control panel.
+- Browser E2E tests are not configured in this repository; Phase 5 relies on Pest, Pint, Vitest, lint, typecheck and production build validation.
