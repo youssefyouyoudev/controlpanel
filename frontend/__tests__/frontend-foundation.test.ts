@@ -5,7 +5,7 @@ import { api, authApi, normalizeApiError } from "@/lib/api";
 import { buildBreadcrumbs, canOpenInEditor, fileIconKind, formatBytes, isConflictError, joinClientPath, rootModeLabel } from "@/lib/file-workspace";
 import { canRunAction, confirmationMode, executionHumanState } from "@/lib/operations";
 import { canManageServer, canManageUsers, canModifyAssignedWebsite } from "@/lib/permissions";
-import { allowedPathSchema, consoleCommandSchema, coolifyStatusSchema, dashboardSummarySchema, deploymentSchema, twoFactorSetupSchema, twoFactorStatusSchema, userSchema, type FileEntry } from "@/lib/schemas";
+import { allowedPathSchema, consoleCommandSchema, coolifyStatusSchema, dashboardSummarySchema, deploymentSchema, twoFactorSetupSchema, twoFactorStatusSchema, userSchema, websiteSchema, type FileEntry } from "@/lib/schemas";
 import { isProtectedRoute, safeReturnTo } from "@/lib/routing";
 import { loginSchema } from "@/app/(auth)/login/page";
 import { config as proxyConfig, proxy } from "@/proxy";
@@ -245,6 +245,54 @@ describe("api error normalization", () => {
 });
 
 describe("dashboard response validation", () => {
+  function websitePayload(scripts: unknown) {
+    return {
+      id: 1,
+      server_id: 1,
+      name: "Demo",
+      slug: "demo",
+      domain: "demo.test",
+      framework: "Laravel + Vite",
+      status: "healthy",
+      repository_url: null,
+      repository_branch: "main",
+      discovery: {
+        domain_aliases: [],
+        server_names: ["demo.test"],
+        listen_ports: [443],
+        project: {
+          architecture: "full-stack",
+          frameworks: ["Laravel", "React / Vite"],
+          runtimes: ["nginx", "PHP", "Node"],
+          components: [{
+            name: "backend",
+            role: "backend",
+            type: "laravel",
+            framework: "Laravel",
+            runtime: "PHP",
+            relative_path: "backend",
+            scripts,
+          }],
+        },
+      },
+      database_associations: [],
+      modules: {},
+      created_at: null,
+      updated_at: null,
+    };
+  }
+
+  it("normalizes legacy empty discovery scripts arrays to objects", () => {
+    const parsed = websiteSchema.parse(websitePayload([]));
+
+    expect(parsed.discovery?.project?.components[0]?.scripts).toEqual({});
+  });
+
+  it("accepts canonical discovery scripts objects and rejects non-empty arrays", () => {
+    expect(websiteSchema.parse(websitePayload({ build: "vite build" })).discovery?.project?.components[0]?.scripts).toEqual({ build: "vite build" });
+    expect(websiteSchema.safeParse(websitePayload(["vite build"])).success).toBe(false);
+  });
+
   it("accepts a loading-ready dashboard payload", () => {
     const parsed = dashboardSummarySchema.parse({
       server: { status: "healthy", hostname: "local" },
@@ -262,7 +310,7 @@ describe("dashboard response validation", () => {
       },
       website_counts: { total: 0, healthy: 0, degraded: 0, offline: 0 },
       services: [],
-      websites: [],
+      websites: [websitePayload([])],
       activity: [{
         id: 1,
         action: "auth.login",
@@ -279,6 +327,7 @@ describe("dashboard response validation", () => {
     });
 
     expect(parsed.server.status).toBe("healthy");
+    expect(parsed.websites[0]?.discovery?.project?.components[0]?.scripts).toEqual({});
   });
 });
 
