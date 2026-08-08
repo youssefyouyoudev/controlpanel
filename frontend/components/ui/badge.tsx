@@ -6,6 +6,7 @@ const toneMap = {
   degraded: "border-warning/30 bg-warning/10 text-warning",
   offline: "border-danger/30 bg-danger/10 text-danger",
   stopped: "border-danger/30 bg-danger/10 text-danger",
+  failed: "border-danger/30 bg-danger/10 text-danger",
   unknown: "border-border bg-panel-muted text-muted",
   unavailable: "border-border bg-panel-muted text-muted",
 };

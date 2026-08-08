@@ -62,9 +62,9 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <Metric title="Server" value={data.server.status} detail={data.server.hostname ?? "local"} badge />
-        <Metric title="CPU" value={formatPercent(data.metrics.cpu.usage_percent)} detail={`Load ${data.metrics.cpu.load_average.join(" / ") || "unavailable"}`} />
-        <Metric title="Memory" value={formatPercent(data.metrics.memory.usage_percent)} detail={`${formatBytes(data.metrics.memory.used_bytes)} used`} />
-        <Metric title="Disk" value={formatPercent(data.metrics.disk.usage_percent)} detail={`${formatBytes(data.metrics.disk.used_bytes)} used`} />
+        <Metric title="CPU" value={formatPercent(data.metrics.cpu.usage_percent)} detail={`${data.metrics.cpu.cores ?? "Unknown"} cores · Load ${data.metrics.cpu.load_average.join(" / ") || "unavailable"}`} />
+        <Metric title="Memory" value={formatPercent(data.metrics.memory.usage_percent)} detail={`${formatBytes(data.metrics.memory.used_bytes)} used · ${formatBytes(data.metrics.memory.available_bytes)} free`} />
+        <Metric title="Disk" value={formatPercent(data.metrics.disk.usage_percent)} detail={`${formatBytes(data.metrics.disk.used_bytes)} used · ${formatBytes(data.metrics.disk.free_bytes)} free`} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -85,8 +85,11 @@ export default function DashboardPage() {
           <CardContent className="grid gap-3 sm:grid-cols-2">
             {data.services.map((service) => (
               <div key={service.name} className="flex items-center justify-between rounded-[var(--radius)] border border-border bg-panel-muted p-3">
-                <span className="text-sm font-medium">{service.label}</span>
-                <Badge value={service.status} />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{service.label}</div>
+                  <div className="truncate text-xs text-muted">{service.version ?? (service.installed === false ? "Not detected" : service.unit ?? "Read-only probe")}</div>
+                </div>
+                <Badge value={service.status} className="shrink-0" />
               </div>
             ))}
           </CardContent>

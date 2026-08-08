@@ -18,6 +18,7 @@ frontend/.env.*
 frontend/.next/
 frontend/out/
 frontend/node_modules/
+frontend/*.log
 *.sql
 *.sqlite
 *.sqlite3
