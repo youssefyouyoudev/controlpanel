@@ -91,6 +91,11 @@ class Website extends Model
         return $this->hasMany(CoolifyResourceLink::class);
     }
 
+    public function databases(): HasMany
+    {
+        return $this->hasMany(WebsiteDatabase::class);
+    }
+
     public function deployments(): HasMany
     {
         return $this->hasMany(Deployment::class);

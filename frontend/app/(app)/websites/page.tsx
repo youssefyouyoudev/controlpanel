@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileTerminal, GitBranch, ListFilter, RefreshCcw, RotateCw, Search } from "lucide-react";
+import { Database as DatabaseIcon, ExternalLink, FileTerminal, GitBranch, ListFilter, RefreshCcw, RotateCw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -45,6 +45,8 @@ export default function WebsitesPage() {
       website.domain,
       website.framework,
       website.discovery?.application_type,
+      website.discovery?.project?.frameworks.join(" "),
+      website.database_associations.map((database) => database.database_name).join(" "),
       website.discovery?.domain_aliases.join(" "),
     ].filter(Boolean).join(" ").toLowerCase();
 
@@ -138,6 +140,14 @@ function Counter({ label, value }: { label: string; value: number }) {
 function WebsiteCard({ website }: { website: Website }) {
   const discovery = website.discovery;
   const openUrl = website.domain ? `${discovery?.https_enabled ? "https" : "http"}://${website.domain}` : null;
+  const frameworks = discovery?.project?.frameworks?.length ? discovery.project.frameworks : discovery?.stack ? [discovery.stack] : [];
+  const components = discovery?.project?.components ?? [];
+  const databaseName = website.database_associations[0]?.database_name ?? discovery?.databases?.[0]?.database;
+  const sslValue = discovery?.project?.ssl?.origin_tls
+    && typeof discovery.project.ssl.origin_tls === "object"
+    && "enabled" in discovery.project.ssl.origin_tls
+    ? discovery.project.ssl.origin_tls.enabled ? "Origin TLS" : "Unknown public TLS"
+    : discovery?.ssl_enabled ? "Enabled" : discovery?.ssl_enabled === false ? "Disabled" : "Unavailable";
 
   return (
     <Card className="h-full transition hover:border-accent">
@@ -149,14 +159,21 @@ function WebsiteCard({ website }: { website: Website }) {
         <Badge value={website.status} />
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
+        {frameworks.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {frameworks.slice(0, 4).map((framework) => <span key={framework} className="rounded-[var(--radius)] bg-panel-muted px-2 py-1 text-xs text-foreground">{framework}</span>)}
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-2">
-          <Fact label="Type" value={discovery?.application_type ?? website.framework ?? "Unavailable"} />
-          <Fact label="HTTP" value={typeof discovery?.http_status === "number" ? `${discovery.http_status}${discovery.response_time_ms ? ` · ${discovery.response_time_ms}ms` : ""}` : "Unavailable"} />
-          <Fact label="SSL" value={discovery?.ssl_enabled ? "Enabled" : discovery?.ssl_enabled === false ? "Disabled" : "Unavailable"} />
-          <Fact label="Runtime" value={discovery?.runtime_association ?? discovery?.runtime ?? "Unavailable"} />
+          <Fact label="Architecture" value={discovery?.project?.architecture ?? discovery?.application_type ?? website.framework ?? "Unavailable"} />
+          <Fact label="HTTP" value={typeof discovery?.http_status === "number" ? `${discovery.http_status}${discovery.response_time_ms ? ` - ${discovery.response_time_ms}ms` : ""}` : "Unavailable"} />
+          <Fact label="SSL" value={sslValue} />
+          <Fact label="Runtime" value={(discovery?.project?.runtimes ?? []).join(", ") || discovery?.runtime_association || discovery?.runtime || "Unavailable"} />
           <Fact label="Branch" value={discovery?.git_branch ?? website.repository_branch ?? "Unavailable"} />
           <Fact label="Size" value={formatBytes(discovery?.directory_size_bytes)} />
         </div>
+        {components.length ? <p className="truncate rounded-[var(--radius)] bg-panel-muted p-2 text-xs text-muted">Components: {components.map((component) => `${component.role}:${component.framework}`).join(", ")}</p> : null}
+        {databaseName ? <p className="truncate rounded-[var(--radius)] bg-panel-muted p-2 text-xs text-muted">Database: {databaseName}</p> : null}
         {discovery?.domain_aliases?.length ? <p className="truncate rounded-[var(--radius)] bg-panel-muted p-2 text-xs text-muted">Aliases: {discovery.domain_aliases.join(", ")}</p> : null}
         <div className="flex flex-wrap gap-2 pt-1">
           {openUrl ? <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1 rounded-[var(--radius)] border border-border px-2.5 text-xs hover:bg-panel-muted"><ExternalLink className="h-3.5 w-3.5" />Open</a> : null}
@@ -165,6 +182,7 @@ function WebsiteCard({ website }: { website: Website }) {
           <Link href={`/websites/${website.id}/logs`} className="inline-flex h-8 items-center rounded-[var(--radius)] border border-border px-2.5 text-xs hover:bg-panel-muted">Logs</Link>
           <Link href={`/websites/${website.id}/deployments`} className="inline-flex h-8 items-center rounded-[var(--radius)] border border-border px-2.5 text-xs hover:bg-panel-muted">Deploy</Link>
           <Link href={`/websites/${website.id}/git`} className="inline-flex h-8 items-center gap-1 rounded-[var(--radius)] border border-border px-2.5 text-xs hover:bg-panel-muted"><GitBranch className="h-3.5 w-3.5" />Git</Link>
+          {databaseName ? <Link href={`/databases?database=${encodeURIComponent(databaseName)}`} className="inline-flex h-8 items-center gap-1 rounded-[var(--radius)] border border-border px-2.5 text-xs hover:bg-panel-muted"><DatabaseIcon className="h-3.5 w-3.5" />Database</Link> : null}
         </div>
       </CardContent>
     </Card>

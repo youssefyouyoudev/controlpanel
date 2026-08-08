@@ -6,11 +6,26 @@ YouPanel uses Laravel Sanctum stateful SPA authentication, CSRF protection, role
 
 ## Website Discovery
 
-Website discovery is owner-only. It reads Nginx configuration and safely inspects referenced application paths. It does not read `.env`, private keys, database credentials, API tokens, Cloudflare secrets, or Git credentials.
+Website discovery is owner-only. It reads Nginx configuration and safely inspects referenced application paths inside configured allowed roots. It does not read private keys, database credentials, API tokens, Cloudflare secrets, or Git credentials.
+
+Discovery may read `.env` files only for these allowlisted keys: `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, and `DB_DATABASE`. It does not return database usernames or passwords.
 
 Git remotes are redacted before returning to the API.
 
 Sync creates database records but does not delete manually configured websites.
+
+## Database Workbench
+
+Database workbench access requires:
+
+- authenticated user
+- Owner role
+- current password confirmation for SQL execution
+- server-side database credentials only
+- SQL classification before execution
+- audit logs for query execution
+
+The current MySQL/MariaDB adapter allows read-only statements only and blocks multiple statements. Audit metadata records the target database, classification, and row count, not raw SQL text or credentials.
 
 ## Terminal
 

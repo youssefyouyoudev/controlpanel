@@ -10,6 +10,7 @@ use App\Models\Server;
 use App\Models\User;
 use App\Models\Website;
 use App\Models\WebsiteComponent;
+use App\Models\WebsiteDatabase;
 use App\Services\AuditLogger;
 use Illuminate\Support\Str;
 
@@ -44,6 +45,7 @@ class WebsiteSynchronizationService
 
             $this->syncAllowedPath($website, $site);
             $this->syncComponent($website, $site);
+            $this->syncDatabases($website, $site);
 
             if (! $exists) {
                 $created++;
@@ -144,6 +146,8 @@ class WebsiteSynchronizationService
                 'directory_size_bytes' => $site['directory_size_bytes'],
                 'git' => $site['git'],
                 'runtime_association' => $site['runtime_association'],
+                'project' => $site['project'] ?? null,
+                'databases' => $site['databases'] ?? [],
                 'discovered_at' => $site['discovered_at'],
             ],
         ]);
@@ -153,7 +157,7 @@ class WebsiteSynchronizationService
             'name' => $website->exists ? $website->name : $site['name'],
             'slug' => $website->exists ? $website->slug : $this->uniqueSlug($site),
             'domain' => $site['primary_domain'] ?? $website->domain,
-            'framework' => $site['stack'],
+            'framework' => $site['stack'] ?: $website->framework,
             'root_path' => $site['root_path'] ?: ($website->root_path ?: dirname((string) $site['source_path'])),
             'repository_url' => data_get($site, 'git.remote_url') ?: $website->repository_url,
             'repository_branch' => $site['git_branch'] ?: ($website->repository_branch ?: 'main'),
@@ -246,10 +250,42 @@ class WebsiteSynchronizationService
                     'source' => 'nginx-discovery',
                     'proxy_destination' => $site['proxy_destination'],
                     'application_type' => $site['application_type'],
+                    'project' => $site['project'] ?? null,
                 ],
                 'is_active' => true,
             ]
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $site
+     */
+    private function syncDatabases(Website $website, array $site): void
+    {
+        foreach ($site['databases'] ?? [] as $database) {
+            if (! is_array($database) || blank($database['database'] ?? null)) {
+                continue;
+            }
+
+            WebsiteDatabase::query()->updateOrCreate(
+                [
+                    'website_id' => $website->id,
+                    'driver' => (string) ($database['driver'] ?? 'mysql'),
+                    'host' => $database['host'] ?? null,
+                    'port' => $database['port'] ?? null,
+                    'database_name' => (string) $database['database'],
+                ],
+                [
+                    'source_path' => $database['source_path'] ?? null,
+                    'status' => 'configured',
+                    'metadata' => [
+                        'source' => 'env-discovery',
+                        'source_relative_path' => $database['source_relative_path'] ?? null,
+                        'configured' => (bool) ($database['configured'] ?? true),
+                    ],
+                ],
+            );
+        }
     }
 
     private function componentType(string $applicationType): WebsiteComponentType

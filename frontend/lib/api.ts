@@ -13,6 +13,12 @@ import {
   coolifyCapabilitySchema,
   coolifyResourceLinkSchema,
   coolifyStatusSchema,
+  databaseOverviewSchema,
+  databaseQueryResultSchema,
+  databaseRowsSchema,
+  databaseSummarySchema,
+  databaseTableSchema,
+  databaseTableSummarySchema,
   dashboardSummarySchema,
   deploymentSchema,
   discoveredCoolifyResourceSchema,
@@ -42,6 +48,12 @@ import {
   type CoolifyCapability,
   type CoolifyResourceLink,
   type CoolifyStatus,
+  type DatabaseOverview,
+  type DatabaseQueryResult,
+  type DatabaseRows,
+  type DatabaseSummary,
+  type DatabaseTable,
+  type DatabaseTableSummary,
   type DashboardSummary,
   type Deployment,
   type DiscoveredCoolifyResource,
@@ -586,5 +598,33 @@ export const terminalApi = {
     await csrfCookie();
     const data = await unwrap(api.delete<Envelope<{ session: unknown }>>(`/api/v1/terminal/sessions/${uuid}`));
     return terminalSessionSchema.parse(data.session);
+  },
+};
+
+export const databaseApi = {
+  async overview(): Promise<DatabaseOverview> {
+    const data = await unwrap(api.get<Envelope<{ overview: unknown }>>("/api/v1/databases/overview"));
+    return databaseOverviewSchema.parse(data.overview);
+  },
+  async list(): Promise<DatabaseSummary[]> {
+    const data = await unwrap(api.get<Envelope<{ databases: unknown[] }>>("/api/v1/databases"));
+    return databaseSummarySchema.array().parse(data.databases);
+  },
+  async tables(database: string): Promise<DatabaseTableSummary[]> {
+    const data = await unwrap(api.get<Envelope<{ tables: unknown[] }>>(`/api/v1/databases/${encodeURIComponent(database)}/tables`));
+    return databaseTableSummarySchema.array().parse(data.tables);
+  },
+  async table(database: string, table: string): Promise<DatabaseTable> {
+    const data = await unwrap(api.get<Envelope<{ table: unknown }>>(`/api/v1/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}`));
+    return databaseTableSchema.parse(data.table);
+  },
+  async rows(database: string, table: string, page = 1, per_page = 100): Promise<DatabaseRows> {
+    const data = await unwrap(api.get<Envelope<{ rows: unknown }>>(`/api/v1/databases/${encodeURIComponent(database)}/tables/${encodeURIComponent(table)}/rows`, { params: { page, per_page } }));
+    return databaseRowsSchema.parse(data.rows);
+  },
+  async query(database: string, values: { sql: string; current_password: string; limit?: number }): Promise<DatabaseQueryResult> {
+    await csrfCookie();
+    const data = await unwrap(api.post<Envelope<{ result: unknown }>>(`/api/v1/databases/${encodeURIComponent(database)}/query`, values));
+    return databaseQueryResultSchema.parse(data.result);
   },
 };

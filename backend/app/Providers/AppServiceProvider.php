@@ -6,6 +6,8 @@ use App\Contracts\CoolifyClientInterface;
 use App\Contracts\FileWorkspaceInterface;
 use App\Services\Coolify\CoolifyApiClient;
 use App\Services\Coolify\MockCoolifyClient;
+use App\Services\Databases\DatabaseDriverInterface;
+use App\Services\Databases\MySqlDatabaseDriver;
 use App\Services\FileWorkspaceService;
 use App\Services\Metrics\LinuxServerMetricsProvider;
 use App\Services\Metrics\MockServerMetricsProvider;
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
                 : new LinuxServerMetricsProvider;
         });
         $this->app->bind(FileWorkspaceInterface::class, FileWorkspaceService::class);
+        $this->app->bind(DatabaseDriverInterface::class, MySqlDatabaseDriver::class);
         $this->app->bind(CoolifyClientInterface::class, function (): CoolifyClientInterface {
             return config('coolify.driver') === 'api'
                 ? $this->app->make(CoolifyApiClient::class)

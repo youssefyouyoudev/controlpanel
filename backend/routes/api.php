@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\CoolifyIntegrationController;
 use App\Http\Controllers\Api\V1\CoolifyResourceController;
 use App\Http\Controllers\Api\V1\CoolifyResourceLinkController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\DatabaseWorkbenchController;
 use App\Http\Controllers\Api\V1\DeploymentController;
 use App\Http\Controllers\Api\V1\FileRevisionController;
 use App\Http\Controllers\Api\V1\FileRootController;
@@ -60,6 +61,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/terminal/sessions', [TerminalSessionController::class, 'store'])->middleware('throttle:operations-sensitive')->name('terminal.sessions.store');
         Route::get('/terminal/sessions/{terminalSession}', [TerminalSessionController::class, 'show'])->middleware('throttle:operations-read')->name('terminal.sessions.show');
         Route::delete('/terminal/sessions/{terminalSession}', [TerminalSessionController::class, 'destroy'])->middleware('throttle:operations-sensitive')->name('terminal.sessions.destroy');
+
+        Route::get('/databases/overview', [DatabaseWorkbenchController::class, 'overview'])->middleware('throttle:operations-read')->name('databases.overview');
+        Route::get('/databases', [DatabaseWorkbenchController::class, 'index'])->middleware('throttle:operations-read')->name('databases.index');
+        Route::get('/databases/{database}', [DatabaseWorkbenchController::class, 'show'])->middleware('throttle:operations-read')->name('databases.show');
+        Route::get('/databases/{database}/tables', [DatabaseWorkbenchController::class, 'tables'])->middleware('throttle:operations-read')->name('databases.tables');
+        Route::get('/databases/{database}/tables/{table}', [DatabaseWorkbenchController::class, 'table'])->middleware('throttle:operations-read')->name('databases.tables.show');
+        Route::get('/databases/{database}/tables/{table}/rows', [DatabaseWorkbenchController::class, 'rows'])->middleware('throttle:operations-read')->name('databases.tables.rows');
+        Route::post('/databases/{database}/query', [DatabaseWorkbenchController::class, 'query'])->middleware('throttle:operations-sensitive')->name('databases.query');
 
         Route::get('/websites', [WebsiteController::class, 'index'])->name('websites.index');
         Route::post('/websites/discovery/scan', [WebsiteDiscoveryController::class, 'scan'])->middleware('throttle:operations-sensitive')->name('websites.discovery.scan');

@@ -22,6 +22,7 @@ function discoveryFixture(): array
     File::put($laravel.'/artisan', '#!/usr/bin/env php');
     File::put($laravel.'/composer.json', '{"name":"demo/laravel"}');
     File::put($laravel.'/public/index.php', '<?php echo "ok";');
+    File::put($laravel.'/.env', "DB_CONNECTION=mysql\nDB_HOST=127.0.0.1\nDB_PORT=3306\nDB_DATABASE=laravel_site\nDB_USERNAME=secret_user\nDB_PASSWORD=secret_password\n");
     File::put($next.'/package.json', '{"dependencies":{"next":"16.0.0","react":"19.0.0"}}');
     File::put($next.'/next.config.mjs', 'export default {};');
     File::put($nginx.'/sites.conf', <<<NGINX
@@ -142,4 +143,43 @@ it('redacts git credentials during discovery', function (): void {
 
     expect($site['git']['remote_url'])->toBe('https://[redacted]@example.com/private/repo.git')
         ->and(json_encode($site))->not->toContain('token:secret');
+});
+
+it('resolves sibling backend and frontend as one full stack project', function (): void {
+    $base = storage_path('app/discovery-fixtures/'.Str::uuid());
+    $nginx = $base.'/nginx';
+    $project = $base.'/var/www/erplus';
+    $backend = $project.'/backend';
+    $frontend = $project.'/frontend';
+
+    File::ensureDirectoryExists($nginx);
+    File::ensureDirectoryExists($backend.'/public');
+    File::ensureDirectoryExists($frontend);
+    File::put($backend.'/artisan', '#!/usr/bin/env php');
+    File::put($backend.'/composer.json', '{"require":{"laravel/framework":"^12.0"}}');
+    File::put($backend.'/.env', "DB_CONNECTION=mysql\nDB_HOST=db.internal\nDB_PORT=3306\nDB_DATABASE=erplus\nDB_USERNAME=hidden\nDB_PASSWORD=hidden\n");
+    File::put($frontend.'/package.json', '{"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","react":"latest"}}');
+    File::put($frontend.'/vite.config.ts', 'export default {};');
+    File::put($nginx.'/erplus.conf', <<<NGINX
+server {
+    listen 443 ssl;
+    server_name erplus.test www.erplus.test;
+    root {$backend}/public;
+    ssl_certificate {$base}/cert.pem;
+}
+NGINX);
+
+    config()->set('youpanel.discovery.nginx_paths', [$nginx]);
+    config()->set('youpanel.discovery.allowed_roots', [$base.'/var/www']);
+    config()->set('youpanel.discovery.health_checks', false);
+
+    $site = collect(app(NginxWebsiteDiscoveryService::class)->scan())->firstWhere('primary_domain', 'erplus.test');
+
+    expect($site['root_path'])->toBe($project)
+        ->and($site['stack'])->toBe('Laravel + React / Vite')
+        ->and($site['project']['architecture'])->toBe('full-stack')
+        ->and($site['project']['frameworks'])->toContain('Laravel', 'React / Vite')
+        ->and($site['databases'][0]['database'])->toBe('erplus')
+        ->and(json_encode($site))->not->toContain('DB_PASSWORD')
+        ->and(json_encode($site))->not->toContain('hidden');
 });

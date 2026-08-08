@@ -58,6 +58,47 @@ export const serverSchema = z.object({
   last_seen_at: z.string().nullable(),
 });
 
+export const websiteDatabaseAssociationSchema = z.object({
+  id: z.number(),
+  driver: z.string(),
+  host: z.string().nullable(),
+  port: z.number().nullable(),
+  database_name: z.string(),
+  status: z.string(),
+  source_relative_path: z.string().nullable().optional(),
+});
+export type WebsiteDatabaseAssociation = z.infer<typeof websiteDatabaseAssociationSchema>;
+
+const discoveredDatabaseSchema = z.object({
+  driver: z.string(),
+  host: z.string().nullable().optional(),
+  port: z.number().nullable().optional(),
+  database: z.string(),
+  source_relative_path: z.string().nullable().optional(),
+  configured: z.boolean().optional(),
+});
+
+const discoveryProjectSchema = z.object({
+  root_path: z.string().nullable().optional(),
+  document_root: z.string().nullable().optional(),
+  architecture: z.string().nullable().optional(),
+  frameworks: z.array(z.string()).default([]),
+  runtimes: z.array(z.string()).default([]),
+  components: z.array(z.object({
+    name: z.string(),
+    role: z.string(),
+    type: z.string(),
+    framework: z.string().nullable(),
+    runtime: z.string().nullable(),
+    relative_path: z.string(),
+    scripts: z.record(z.string(), z.string()).optional(),
+  }).passthrough()).default([]),
+  processes: z.record(z.string(), z.unknown()).optional(),
+  ssl: z.record(z.string(), z.unknown()).optional(),
+  databases: z.array(discoveredDatabaseSchema).default([]),
+  evidence: z.array(z.string()).default([]),
+}).passthrough();
+
 export const websiteSchema = z.object({
   id: z.number(),
   server_id: z.number(),
@@ -100,8 +141,11 @@ export const websiteSchema = z.object({
     }).nullable().optional(),
     git_dirty: z.boolean().nullable().optional(),
     runtime_association: z.string().nullable().optional(),
+    project: discoveryProjectSchema.nullable().optional(),
+    databases: z.array(discoveredDatabaseSchema).default([]),
     discovered_at: z.string().nullable().optional(),
   }).optional(),
+  database_associations: z.array(websiteDatabaseAssociationSchema).default([]),
   modules: z.record(z.string(), z.string()),
   created_at: z.string().nullable(),
   updated_at: z.string().nullable(),
@@ -136,9 +180,82 @@ export const discoveredWebsiteSchema = z.object({
   git_branch: z.string().nullable(),
   last_commit: z.unknown().nullable(),
   runtime_association: z.string().nullable(),
+  project: discoveryProjectSchema.nullable().optional(),
+  databases: z.array(discoveredDatabaseSchema).default([]),
   discovered_at: z.string(),
 });
 export type DiscoveredWebsite = z.infer<typeof discoveredWebsiteSchema>;
+
+export const databaseOverviewSchema = z.object({
+  driver: z.string(),
+  host: z.string().nullable().optional(),
+  port: z.number().nullable().optional(),
+  version: z.string().nullable().optional(),
+  database_count: z.number().optional(),
+  configured: z.boolean().optional(),
+  website_links: z.array(z.object({
+    id: z.number(),
+    website_id: z.number(),
+    website_name: z.string().nullable(),
+    website_domain: z.string().nullable(),
+    driver: z.string(),
+    host: z.string().nullable(),
+    port: z.number().nullable(),
+    database_name: z.string(),
+    status: z.string(),
+    source_relative_path: z.string().nullable().optional(),
+  })).default([]),
+});
+export type DatabaseOverview = z.infer<typeof databaseOverviewSchema>;
+
+export const databaseSummarySchema = z.object({
+  name: z.string(),
+  system: z.boolean().optional(),
+});
+export type DatabaseSummary = z.infer<typeof databaseSummarySchema>;
+
+export const databaseTableSummarySchema = z.object({
+  name: z.string(),
+  type: z.string().nullable().optional(),
+  engine: z.string().nullable().optional(),
+  rows_estimate: z.number().nullable().optional(),
+  size_bytes: z.number().nullable().optional(),
+  updated_at: z.string().nullable().optional(),
+}).passthrough();
+export type DatabaseTableSummary = z.infer<typeof databaseTableSummarySchema>;
+
+export const databaseTableSchema = z.object({
+  database: z.string(),
+  name: z.string(),
+  columns: z.array(z.record(z.string(), z.unknown())),
+  indexes: z.array(z.record(z.string(), z.unknown())),
+});
+export type DatabaseTable = z.infer<typeof databaseTableSchema>;
+
+export const databaseRowsSchema = z.object({
+  database: z.string(),
+  table: z.string(),
+  page: z.number(),
+  per_page: z.number(),
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.string(), z.unknown())),
+});
+export type DatabaseRows = z.infer<typeof databaseRowsSchema>;
+
+export const databaseQueryResultSchema = z.object({
+  database: z.string(),
+  classification: z.object({
+    type: z.string(),
+    readonly: z.boolean(),
+    statement: z.string(),
+    reason: z.string().nullable(),
+  }),
+  sql: z.string(),
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.string(), z.unknown())),
+  row_count: z.number(),
+});
+export type DatabaseQueryResult = z.infer<typeof databaseQueryResultSchema>;
 
 export const auditLogSchema = z.object({
   id: z.number(),

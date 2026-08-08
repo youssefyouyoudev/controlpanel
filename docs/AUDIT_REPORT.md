@@ -6,28 +6,33 @@ Last updated: 2026-08-08
 
 - Websites showed `0` because the UI only displayed existing database records visible to the authenticated user.
 - No service existed to discover websites from Nginx configuration.
+- Nginx document roots were treated as the application root, so full-stack projects with sibling backend/frontend apps could be misclassified.
 - The terminal page did not exist, and there was no secure terminal session model.
+- No professional database workbench existed.
 
 ## Implemented Fixes
 
-- Added Nginx-backed website discovery.
+- Refactored website discovery into staged Nginx scanning, project-root resolution, stack detection, Git/process/SSL/storage/database inspection, and sync.
 - Added owner-only scan and sync endpoints.
 - Added discovered metadata to website API resources.
 - Added a professional Websites dashboard with scan, sync, refresh, search, filters, status counts, and action links.
 - Added terminal session tokens with owner authorization, current-password confirmation, hashed token storage, expiry, concurrent limits, safe website working directory validation, and audit logs.
 - Added global `/terminal` and website `/websites/{id}/terminal` pages with xterm.js.
+- Added owner-only `/databases` workbench with database overview, table browser, schema view, row grid, and password-confirmed read-only SQL console.
 
 ## Files Changed
 
 - Backend discovery services and controller.
+- Backend database workbench driver, service, controller, routes, model, and migration.
 - Website resource and API routes.
 - Terminal session model, migration, service, controller, and routes.
-- Frontend website schemas, API client, Websites page, terminal client, routes, sidebar, and website navigation.
-- Documentation for discovery, terminal architecture, and security.
+- Frontend website/database schemas, API client, Websites page, Databases page, terminal client, routes, sidebar, and website navigation.
+- Documentation for discovery, database workbench, terminal architecture, and security.
 
 ## Database Changes
 
 - Added `terminal_sessions` table.
+- Added `website_databases` table for safe website to database associations.
 - Website discovery stores sync metadata in `websites.metadata`.
 - Sync creates read-only `allowed_paths` for discovered root-based websites.
 - Sync creates a `discovered-app` website component.
@@ -39,6 +44,8 @@ Last updated: 2026-08-08
 - Terminal session tokens are stored hashed.
 - Website terminal roots must be inside approved file roots.
 - Terminal start and close events are audited.
+- Database workbench is owner-only and requires current password confirmation for SQL execution.
+- Database discovery returns only safe database identity fields, never usernames or passwords.
 
 ## Tests Added
 
@@ -47,6 +54,9 @@ Last updated: 2026-08-08
 - Duplicate-safe website synchronization.
 - Owner access and non-owner isolation.
 - Git credential redaction.
+- Full-stack backend/frontend project-root resolution.
+- Safe `.env` database metadata detection.
+- Database workbench authorization, password confirmation, audit logging, and SQL classification.
 - Terminal authorization, token expiry, concurrent limits, and working-directory validation.
 
 ## Remaining Limitations
@@ -54,3 +64,4 @@ Last updated: 2026-08-08
 - The WebSocket PTY gateway is implemented as `backend/terminal-gateway/server.mjs`, but it must be run as a separate production process bound to `YOUPANEL_TERMINAL_WS_URL`.
 - Remote Tailscale terminal support is documented but not implemented yet.
 - Discovery health checks depend on the server being able to reach discovered domains.
+- Database workbench currently supports MySQL/MariaDB only and intentionally runs read-only SQL.
