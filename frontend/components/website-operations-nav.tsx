@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Archive, Container, FileTerminal, FileText, GitBranch, PlayCircle, Rocket, Settings2 } from "lucide-react";
+import { Activity, Archive, FileTerminal, FileText, GitBranch, Globe2, PlayCircle, Rocket, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { suffix: "overview", label: "Overview", icon: Activity },
-  { suffix: "actions", label: "Actions", icon: PlayCircle },
+  { suffix: "settings/components", label: "Runtime", icon: PlayCircle },
   { suffix: "deployments", label: "Deployments", icon: Rocket },
-  { suffix: "containers", label: "Containers", icon: Container },
-  { suffix: "console", label: "Console", icon: FileTerminal },
   { suffix: "logs", label: "Logs", icon: FileText },
+  { suffix: "terminal", label: "Terminal", icon: FileTerminal },
+  { suffix: "files", label: "Files", icon: FileText },
   { suffix: "git", label: "Git", icon: GitBranch },
+  { suffix: "settings/deployment", label: "SSL & Domains", icon: Globe2 },
   { suffix: "backups", label: "Backups", icon: Archive },
-  { suffix: "settings/components", label: "Settings", icon: Settings2 },
+  { suffix: "settings/files", label: "Settings", icon: Settings2 },
 ];
 
 export function WebsiteOperationsNav({ websiteId }: { websiteId: string }) {

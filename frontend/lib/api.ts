@@ -16,6 +16,7 @@ import {
   dashboardSummarySchema,
   deploymentSchema,
   discoveredCoolifyResourceSchema,
+  discoveredWebsiteSchema,
   fileContentSchema,
   fileEntrySchema,
   fileRevisionSchema,
@@ -24,6 +25,7 @@ import {
   logSourceSchema,
   notificationSchema,
   serviceSchema,
+  terminalSessionSchema,
   trashEntrySchema,
   twoFactorSetupSchema,
   twoFactorStatusSchema,
@@ -43,12 +45,14 @@ import {
   type DashboardSummary,
   type Deployment,
   type DiscoveredCoolifyResource,
+  type DiscoveredWebsite,
   type FileContent,
   type FileEntry,
   type FileRevision,
   type LogPayload,
   type LogSource,
   type ServiceStatus,
+  type TerminalSession,
   type TrashEntry,
   type TwoFactorSetup,
   type TwoFactorStatus,
@@ -229,6 +233,22 @@ export const websiteApi = {
   async show(id: string): Promise<Website> {
     const data = await unwrap(api.get<Envelope<{ website: Website }>>(`/api/v1/websites/${id}`));
     return websiteSchema.parse(data.website);
+  },
+  async scan(): Promise<{ count: number; discovered: DiscoveredWebsite[] }> {
+    await csrfCookie();
+    const data = await unwrap(api.post<Envelope<{ count: number; discovered: unknown[] }>>("/api/v1/websites/discovery/scan"));
+    return { count: data.count, discovered: discoveredWebsiteSchema.array().parse(data.discovered) };
+  },
+  async sync(): Promise<{ created: number; updated: number; unchanged: number; discovered: DiscoveredWebsite[]; websites: Website[] }> {
+    await csrfCookie();
+    const data = await unwrap(api.post<Envelope<{ created: number; updated: number; unchanged: number; discovered: unknown[]; websites: unknown[] }>>("/api/v1/websites/discovery/sync"));
+    return {
+      created: data.created,
+      updated: data.updated,
+      unchanged: data.unchanged,
+      discovered: discoveredWebsiteSchema.array().parse(data.discovered),
+      websites: websiteSchema.array().parse(data.websites),
+    };
   },
 };
 
@@ -548,5 +568,23 @@ export const consoleApi = {
   async show(uuid: string): Promise<ConsoleExecution> {
     const data = await unwrap(api.get<Envelope<{ execution: unknown }>>(`/api/v1/console-executions/${uuid}`));
     return consoleExecutionSchema.parse(data.execution);
+  },
+};
+
+export const terminalApi = {
+  async create(current_password: string): Promise<{ session: TerminalSession; token: string; websocket_url: string }> {
+    await csrfCookie();
+    const data = await unwrap(api.post<Envelope<{ session: unknown; token: string; websocket_url: string }>>("/api/v1/terminal/sessions", { current_password }));
+    return { session: terminalSessionSchema.parse(data.session), token: data.token, websocket_url: data.websocket_url };
+  },
+  async createForWebsite(websiteId: string, current_password: string): Promise<{ session: TerminalSession; token: string; websocket_url: string }> {
+    await csrfCookie();
+    const data = await unwrap(api.post<Envelope<{ session: unknown; token: string; websocket_url: string }>>(`/api/v1/websites/${websiteId}/terminal/sessions`, { current_password }));
+    return { session: terminalSessionSchema.parse(data.session), token: data.token, websocket_url: data.websocket_url };
+  },
+  async close(uuid: string): Promise<TerminalSession> {
+    await csrfCookie();
+    const data = await unwrap(api.delete<Envelope<{ session: unknown }>>(`/api/v1/terminal/sessions/${uuid}`));
+    return terminalSessionSchema.parse(data.session);
   },
 };

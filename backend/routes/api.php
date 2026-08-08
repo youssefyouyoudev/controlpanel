@@ -18,16 +18,21 @@ use App\Http\Controllers\Api\V1\FileWorkspaceController;
 use App\Http\Controllers\Api\V1\GitController;
 use App\Http\Controllers\Api\V1\LogController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\TerminalSessionController;
 use App\Http\Controllers\Api\V1\TrashController;
 use App\Http\Controllers\Api\V1\TwoFactorAuthenticationController;
 use App\Http\Controllers\Api\V1\WebsiteActionController;
 use App\Http\Controllers\Api\V1\WebsiteComponentController;
 use App\Http\Controllers\Api\V1\WebsiteController;
+use App\Http\Controllers\Api\V1\WebsiteDiscoveryController;
 use App\Http\Controllers\Api\V1\WebsiteHealthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('api.health');
 Route::get('/ready', ReadinessController::class)->name('api.ready');
+Route::post('/internal/terminal/sessions/validate', [TerminalSessionController::class, 'validateGatewayToken'])
+    ->middleware('throttle:operations-sensitive')
+    ->name('api.internal.terminal.sessions.validate');
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.login');
@@ -52,8 +57,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('/dashboard/websites', [DashboardController::class, 'websites'])->name('dashboard.websites');
         Route::get('/dashboard/activity', [DashboardController::class, 'activity'])->name('dashboard.activity');
         Route::get('/system/readiness', [ReadinessController::class, 'detailed'])->middleware('throttle:operations-read')->name('system.readiness');
+        Route::post('/terminal/sessions', [TerminalSessionController::class, 'store'])->middleware('throttle:operations-sensitive')->name('terminal.sessions.store');
+        Route::get('/terminal/sessions/{terminalSession}', [TerminalSessionController::class, 'show'])->middleware('throttle:operations-read')->name('terminal.sessions.show');
+        Route::delete('/terminal/sessions/{terminalSession}', [TerminalSessionController::class, 'destroy'])->middleware('throttle:operations-sensitive')->name('terminal.sessions.destroy');
 
         Route::get('/websites', [WebsiteController::class, 'index'])->name('websites.index');
+        Route::post('/websites/discovery/scan', [WebsiteDiscoveryController::class, 'scan'])->middleware('throttle:operations-sensitive')->name('websites.discovery.scan');
+        Route::post('/websites/discovery/sync', [WebsiteDiscoveryController::class, 'sync'])->middleware('throttle:operations-sensitive')->name('websites.discovery.sync');
         Route::get('/websites/{website}', [WebsiteController::class, 'show'])->name('websites.show');
 
         Route::get('/notifications', [NotificationController::class, 'index'])->middleware('throttle:operations-read');
@@ -136,6 +146,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/websites/{website}/coolify-links/{link}/verify', [CoolifyResourceLinkController::class, 'verify'])->middleware('throttle:coolify-write');
 
         Route::post('/websites/{website}/deployments', [DeploymentController::class, 'store'])->middleware('throttle:deployments-write');
+        Route::post('/websites/{website}/terminal/sessions', [TerminalSessionController::class, 'storeForWebsite'])->middleware('throttle:operations-sensitive')->name('websites.terminal.sessions.store');
 
         Route::get('/websites/{website}/resources', [CoolifyResourceController::class, 'index'])->middleware('throttle:coolify-read');
         Route::get('/websites/{website}/resources/{link}', [CoolifyResourceController::class, 'show'])->middleware('throttle:coolify-read');

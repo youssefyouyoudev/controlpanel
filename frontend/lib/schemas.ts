@@ -71,11 +71,74 @@ export const websiteSchema = z.object({
   repository_branch: z.string(),
   assigned_port: z.number().nullable().optional(),
   display_path: z.string().nullable().optional(),
+  discovery: z.object({
+    source: z.string().nullable().optional(),
+    source_path: z.string().nullable().optional(),
+    domain_aliases: z.array(z.string()).default([]),
+    server_names: z.array(z.string()).default([]),
+    document_root: z.string().nullable().optional(),
+    proxy_destination: z.string().nullable().optional(),
+    listen_ports: z.array(z.number()).default([]),
+    http_enabled: z.boolean().nullable().optional(),
+    https_enabled: z.boolean().nullable().optional(),
+    ssl_enabled: z.boolean().nullable().optional(),
+    ssl_expires_at: z.string().nullable().optional(),
+    http_status: z.number().nullable().optional(),
+    response_time_ms: z.number().nullable().optional(),
+    application_type: z.string().nullable().optional(),
+    stack: z.string().nullable().optional(),
+    runtime: z.string().nullable().optional(),
+    php_version: z.string().nullable().optional(),
+    node_version: z.string().nullable().optional(),
+    directory_size_bytes: z.number().nullable().optional(),
+    git_branch: z.string().nullable().optional(),
+    git_remote_url: z.string().nullable().optional(),
+    last_commit: z.object({
+      hash: z.string().nullable().optional(),
+      message: z.string().nullable().optional(),
+      date: z.string().nullable().optional(),
+    }).nullable().optional(),
+    git_dirty: z.boolean().nullable().optional(),
+    runtime_association: z.string().nullable().optional(),
+    discovered_at: z.string().nullable().optional(),
+  }).optional(),
   modules: z.record(z.string(), z.string()),
   created_at: z.string().nullable(),
   updated_at: z.string().nullable(),
 });
 export type Website = z.infer<typeof websiteSchema>;
+
+export const discoveredWebsiteSchema = z.object({
+  stable_id: z.string(),
+  source: z.string(),
+  source_path: z.string(),
+  name: z.string(),
+  primary_domain: z.string().nullable(),
+  domain_aliases: z.array(z.string()),
+  server_names: z.array(z.string()),
+  root_path: z.string().nullable(),
+  document_root: z.string().nullable().optional(),
+  proxy_destination: z.string().nullable(),
+  listen_ports: z.array(z.number()),
+  http_enabled: z.boolean(),
+  https_enabled: z.boolean(),
+  ssl_enabled: z.boolean(),
+  ssl_expires_at: z.string().nullable(),
+  http_status: z.number().nullable(),
+  response_time_ms: z.number().nullable(),
+  health_state: z.string(),
+  application_type: z.string(),
+  stack: z.string(),
+  runtime: z.string().nullable(),
+  php_version: z.string().nullable(),
+  node_version: z.string().nullable(),
+  directory_size_bytes: z.number().nullable(),
+  git_branch: z.string().nullable(),
+  last_commit: z.unknown().nullable(),
+  runtime_association: z.string().nullable(),
+  discovered_at: z.string(),
+});
+export type DiscoveredWebsite = z.infer<typeof discoveredWebsiteSchema>;
 
 export const auditLogSchema = z.object({
   id: z.number(),
@@ -498,3 +561,16 @@ export const consoleExecutionSchema = z.object({
   created_at: z.string().nullable(),
 });
 export type ConsoleExecution = z.infer<typeof consoleExecutionSchema>;
+
+export const terminalSessionSchema = z.object({
+  uuid: z.string(),
+  scope: z.string(),
+  website_id: z.number().nullable(),
+  working_directory: z.string(),
+  shell: z.string(),
+  status: z.string(),
+  expires_at: z.string().nullable(),
+  idle_timeout_seconds: z.number().nullable().optional(),
+  max_duration_seconds: z.number().nullable().optional(),
+});
+export type TerminalSession = z.infer<typeof terminalSessionSchema>;

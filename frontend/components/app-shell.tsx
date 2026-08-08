@@ -19,6 +19,7 @@ import {
   Server,
   ShieldAlert,
   Sun,
+  Terminal,
   User,
   X,
 } from "lucide-react";
@@ -35,6 +36,7 @@ import { isDemoMode } from "@/lib/env";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/websites", label: "Websites", icon: Globe2 },
+  { href: "/terminal", label: "Terminal", icon: Terminal, ownerOnly: true },
   { href: "/actions", label: "Actions", icon: Activity },
   { href: "/deployments", label: "Deployments", icon: Rocket },
   { href: "/containers", label: "Containers", icon: Container },

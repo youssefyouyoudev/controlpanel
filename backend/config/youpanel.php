@@ -6,6 +6,22 @@ return [
     'service_status_driver' => env('YOUPANEL_SERVICE_STATUS_DRIVER', env('APP_ENV') === 'testing' ? 'mock' : 'auto'),
     'demo_enabled' => env('YOUPANEL_DEMO_ENABLED', false),
     'portfolio_demo' => env('YOUPANEL_PORTFOLIO_DEMO', false),
+    'discovery' => [
+        'nginx_paths' => array_values(array_filter(array_map('trim', explode(',', env('YOUPANEL_NGINX_DISCOVERY_PATHS', '/etc/nginx/sites-enabled,/etc/nginx/sites-available'))))),
+        'health_checks' => (bool) env('YOUPANEL_DISCOVERY_HEALTH_CHECKS', env('APP_ENV') !== 'testing'),
+        'health_timeout_seconds' => (int) env('YOUPANEL_DISCOVERY_HEALTH_TIMEOUT_SECONDS', 5),
+        'directory_size_max_items' => (int) env('YOUPANEL_DISCOVERY_DIRECTORY_SIZE_MAX_ITEMS', 5000),
+    ],
+    'terminal' => [
+        'enabled' => (bool) env('YOUPANEL_TERMINAL_ENABLED', true),
+        'websocket_url' => env('YOUPANEL_TERMINAL_WS_URL', 'ws://127.0.0.1:8787/terminal'),
+        'token_ttl_seconds' => (int) env('YOUPANEL_TERMINAL_TOKEN_TTL_SECONDS', 60),
+        'idle_timeout_seconds' => (int) env('YOUPANEL_TERMINAL_IDLE_TIMEOUT_SECONDS', 600),
+        'max_duration_seconds' => (int) env('YOUPANEL_TERMINAL_MAX_DURATION_SECONDS', 3600),
+        'max_concurrent_per_user' => (int) env('YOUPANEL_TERMINAL_MAX_CONCURRENT_PER_USER', 2),
+        'shell' => env('YOUPANEL_TERMINAL_SHELL', '/bin/bash'),
+        'gateway_secret' => env('YOUPANEL_TERMINAL_GATEWAY_SECRET'),
+    ],
     'files' => [
         'max_edit_bytes' => (int) env('FILE_MAX_EDIT_BYTES', 512 * 1024),
         'max_upload_bytes' => (int) env('FILE_MAX_UPLOAD_BYTES', 10 * 1024 * 1024),
