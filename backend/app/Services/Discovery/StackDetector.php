@@ -41,7 +41,7 @@ class StackDetector
                 'runtime' => null,
                 'path' => $root,
                 'relative_path' => '',
-                'scripts' => [],
+                'scripts' => new \stdClass,
                 'evidence' => $proxyPass ? ['proxy_pass '.$proxyPass] : [],
             ];
         }
@@ -176,9 +176,24 @@ class StackDetector
             'runtime' => $runtime,
             'path' => $directory,
             'relative_path' => $this->relativePath($projectRoot, $directory),
-            'scripts' => $package['scripts'] ?? [],
+            'scripts' => $this->scripts($package),
             'evidence' => array_values(array_unique($evidence)),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $package
+     * @return array<string, string>|\stdClass
+     */
+    private function scripts(array $package): array|\stdClass
+    {
+        if (! isset($package['scripts']) || ! is_array($package['scripts']) || $package['scripts'] === []) {
+            return new \stdClass;
+        }
+
+        return collect($package['scripts'])
+            ->filter(fn (mixed $script, mixed $name): bool => is_string($name) && is_string($script))
+            ->all() ?: new \stdClass;
     }
 
     /**

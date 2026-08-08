@@ -91,7 +91,7 @@ const discoveryProjectSchema = z.object({
     framework: z.string().nullable(),
     runtime: z.string().nullable(),
     relative_path: z.string(),
-    scripts: z.record(z.string(), z.string()).optional(),
+    scripts: z.preprocess((value) => Array.isArray(value) && value.length === 0 ? {} : value, z.record(z.string(), z.string())).optional(),
   }).passthrough()).default([]),
   processes: z.record(z.string(), z.unknown()).optional(),
   ssl: z.record(z.string(), z.unknown()).optional(),

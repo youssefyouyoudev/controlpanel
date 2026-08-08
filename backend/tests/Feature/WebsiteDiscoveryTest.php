@@ -158,7 +158,7 @@ it('resolves sibling backend and frontend as one full stack project', function (
     File::put($backend.'/artisan', '#!/usr/bin/env php');
     File::put($backend.'/composer.json', '{"require":{"laravel/framework":"^12.0"}}');
     File::put($backend.'/.env', "DB_CONNECTION=mysql\nDB_HOST=db.internal\nDB_PORT=3306\nDB_DATABASE=erplus\nDB_USERNAME=hidden\nDB_PASSWORD=hidden\n");
-    File::put($frontend.'/package.json', '{"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","react":"latest"}}');
+    File::put($frontend.'/package.json', '{"scripts":{"build":"vite build"},"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","react":"latest"}}');
     File::put($frontend.'/vite.config.ts', 'export default {};');
     File::put($nginx.'/erplus.conf', <<<NGINX
 server {
@@ -175,11 +175,20 @@ NGINX);
 
     $site = collect(app(NginxWebsiteDiscoveryService::class)->scan())->firstWhere('primary_domain', 'erplus.test');
 
+    $json = json_encode($site);
+    $backendComponent = collect($site['project']['components'])->firstWhere('relative_path', 'backend');
+    $frontendComponent = collect($site['project']['components'])->firstWhere('relative_path', 'frontend');
+
     expect($site['root_path'])->toBe($project)
         ->and($site['stack'])->toBe('Laravel + React / Vite')
         ->and($site['project']['architecture'])->toBe('full-stack')
         ->and($site['project']['frameworks'])->toContain('Laravel', 'React / Vite')
         ->and($site['databases'][0]['database'])->toBe('erplus')
-        ->and(json_encode($site))->not->toContain('DB_PASSWORD')
-        ->and(json_encode($site))->not->toContain('hidden');
+        ->and($backendComponent['scripts'])->toBeInstanceOf(stdClass::class)
+        ->and($frontendComponent['scripts'])->toBe(['build' => 'vite build'])
+        ->and($json)->toContain('"scripts":{}')
+        ->and($json)->toContain('"scripts":{"build":"vite build"}')
+        ->and($json)->not->toContain('"scripts":[]')
+        ->and($json)->not->toContain('DB_PASSWORD')
+        ->and($json)->not->toContain('hidden');
 });
