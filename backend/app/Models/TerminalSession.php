@@ -45,6 +45,7 @@ class TerminalSession extends Model
     {
         return [
             'expires_at' => 'datetime',
+            'consumed_at' => 'datetime',
             'last_activity_at' => 'datetime',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',

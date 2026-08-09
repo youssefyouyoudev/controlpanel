@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, ShieldCheck } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -23,6 +24,10 @@ const schema = z.object({
 
 const twoFactorCodeSchema = z.object({ code: z.string().min(1, "Enter the code from your authenticator app.") });
 const passwordOnlySchema = z.object({ current_password: z.string().min(1, "Current password is required.") });
+
+function svgDataUrl(svg: string): string {
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+}
 
 export default function SecuritySettingsPage() {
   const queryClient = useQueryClient();
@@ -118,7 +123,9 @@ export default function SecuritySettingsPage() {
 
           {setup ? (
             <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-              <div className="rounded-[var(--radius)] border border-border bg-background p-3" dangerouslySetInnerHTML={{ __html: setup.qr_code_svg }} />
+              <div className="rounded-[var(--radius)] border border-border bg-background p-3">
+                <Image src={svgDataUrl(setup.qr_code_svg)} alt="Two-factor setup QR code" width={216} height={216} unoptimized className="h-auto w-full" />
+              </div>
               <div className="space-y-3">
                 <div>
                   <div className="text-sm font-medium">Manual setup key</div>

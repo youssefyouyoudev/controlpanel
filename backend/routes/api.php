@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\FileWorkspaceController;
 use App\Http\Controllers\Api\V1\GitController;
 use App\Http\Controllers\Api\V1\LogController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\SecurityStatusController;
 use App\Http\Controllers\Api\V1\TerminalSessionController;
 use App\Http\Controllers\Api\V1\TrashController;
 use App\Http\Controllers\Api\V1\TwoFactorAuthenticationController;
@@ -32,8 +33,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class)->name('api.health');
 Route::get('/ready', ReadinessController::class)->name('api.ready');
 Route::post('/internal/terminal/sessions/validate', [TerminalSessionController::class, 'validateGatewayToken'])
-    ->middleware('throttle:operations-sensitive')
+    ->middleware('throttle:terminal-gateway')
     ->name('api.internal.terminal.sessions.validate');
+Route::post('/internal/terminal/sessions/{terminalSession}/events', [TerminalSessionController::class, 'gatewayEvent'])
+    ->middleware('throttle:terminal-gateway')
+    ->name('api.internal.terminal.sessions.events');
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('auth.login');
@@ -58,6 +62,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('/dashboard/websites', [DashboardController::class, 'websites'])->name('dashboard.websites');
         Route::get('/dashboard/activity', [DashboardController::class, 'activity'])->name('dashboard.activity');
         Route::get('/system/readiness', [ReadinessController::class, 'detailed'])->middleware('throttle:operations-read')->name('system.readiness');
+        Route::get('/security/status', SecurityStatusController::class)->middleware('throttle:operations-read')->name('security.status');
         Route::post('/terminal/sessions', [TerminalSessionController::class, 'store'])->middleware('throttle:operations-sensitive')->name('terminal.sessions.store');
         Route::get('/terminal/sessions/{terminalSession}', [TerminalSessionController::class, 'show'])->middleware('throttle:operations-read')->name('terminal.sessions.show');
         Route::delete('/terminal/sessions/{terminalSession}', [TerminalSessionController::class, 'destroy'])->middleware('throttle:operations-sensitive')->name('terminal.sessions.destroy');

@@ -21,6 +21,7 @@ class MySqlDatabaseDriver implements DatabaseDriverInterface
             'version' => $pdo->query('select version()')->fetchColumn() ?: null,
             'database_count' => count($this->databases()),
             'configured' => filled(config('youpanel.database_admin.username')),
+            'mode' => config('youpanel.database_admin.mode', 'readonly'),
         ];
     }
 
@@ -80,6 +81,7 @@ class MySqlDatabaseDriver implements DatabaseDriverInterface
         $offset = ($page - 1) * $perPage;
         $sql = sprintf('select * from %s.%s limit %d offset %d', $this->quoteIdentifier($database), $this->quoteIdentifier($table), $perPage, $offset);
         $rows = $this->pdo($database)->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        $this->assertResponseSize($rows);
 
         return [
             'database' => $database,
@@ -94,6 +96,10 @@ class MySqlDatabaseDriver implements DatabaseDriverInterface
     public function execute(string $database, string $sql, int $limit): array
     {
         $this->assertIdentifier($database);
+        if (strlen($sql) > (int) config('youpanel.database_admin.max_query_bytes', 20000)) {
+            throw new OperationBlockedException('SQL is too large.');
+        }
+
         $classification = $this->classifier->classify($sql);
         if (! $classification['readonly']) {
             throw new OperationBlockedException($classification['reason'] ?? 'Only read-only SQL is enabled in this workbench.');
@@ -102,6 +108,7 @@ class MySqlDatabaseDriver implements DatabaseDriverInterface
         $statementSql = $this->limitedSql($classification['statement'], $this->boundedLimit($limit));
         $statement = $this->pdo($database)->query($statementSql);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $this->assertResponseSize($rows);
 
         return [
             'database' => $database,
@@ -113,10 +120,83 @@ class MySqlDatabaseDriver implements DatabaseDriverInterface
         ];
     }
 
+    public function securityDiagnostics(): array
+    {
+        $diagnostics = [
+            'mode' => config('youpanel.database_admin.mode', 'readonly'),
+            'checked' => false,
+            'dangerous_privileges' => [],
+            'elevated_privileges' => [],
+            'warnings' => [],
+        ];
+
+        try {
+            $grants = array_map(
+                fn (array $row): string => strtoupper(implode(' ', array_values($row))),
+                $this->pdo()->query('show grants')->fetchAll(PDO::FETCH_ASSOC),
+            );
+        } catch (PDOException) {
+            return [
+                ...$diagnostics,
+                'warnings' => ['Unable to inspect database grants. Review the workbench user manually.'],
+            ];
+        }
+
+        $dangerousPatterns = [
+            'ALL PRIVILEGES ON *.*',
+            'FILE',
+            'SUPER',
+            'SYSTEM_USER',
+            'SHUTDOWN',
+            'RELOAD',
+            'CREATE USER',
+            'GRANT OPTION',
+        ];
+        $elevatedPatterns = ['PROCESS'];
+        $dangerous = [];
+        $elevated = [];
+
+        foreach ($grants as $grant) {
+            foreach ($dangerousPatterns as $privilege) {
+                if (str_contains($grant, $privilege)) {
+                    $dangerous[] = $privilege;
+                }
+            }
+
+            foreach ($elevatedPatterns as $privilege) {
+                if (str_contains($grant, $privilege)) {
+                    $elevated[] = $privilege;
+                }
+            }
+        }
+
+        $dangerous = array_values(array_unique($dangerous));
+        $elevated = array_values(array_unique($elevated));
+
+        return [
+            ...$diagnostics,
+            'checked' => true,
+            'dangerous_privileges' => $dangerous,
+            'elevated_privileges' => $elevated,
+            'warnings' => [
+                ...($dangerous === [] ? [] : ['The database workbench user has dangerous server-level privileges.']),
+                ...($elevated === [] ? [] : ['The database workbench user has elevated PROCESS visibility.']),
+            ],
+        ];
+    }
+
     private function pdo(?string $database = null): PDO
     {
         if (! (bool) config('youpanel.database_admin.enabled')) {
             throw new OperationBlockedException('Database workbench is disabled.');
+        }
+
+        if (blank(config('youpanel.database_admin.username')) || blank(config('youpanel.database_admin.password'))) {
+            throw new OperationBlockedException('Database workbench credentials are not configured.');
+        }
+
+        if (! in_array(config('youpanel.database_admin.mode'), ['readonly', 'managed'], true)) {
+            throw new OperationBlockedException('Database workbench mode is invalid.');
         }
 
         $host = (string) config('youpanel.database_admin.host');
@@ -163,6 +243,14 @@ class MySqlDatabaseDriver implements DatabaseDriverInterface
     private function boundedLimit(int $limit): int
     {
         return min(max(1, $limit), (int) config('youpanel.database_admin.max_row_limit', 500));
+    }
+
+    private function assertResponseSize(array $rows): void
+    {
+        $encoded = json_encode($rows);
+        if ($encoded !== false && strlen($encoded) > (int) config('youpanel.database_admin.max_response_bytes', 1024 * 1024)) {
+            throw new OperationBlockedException('Database response is too large.');
+        }
     }
 
     private function limitedSql(string $sql, int $limit): string

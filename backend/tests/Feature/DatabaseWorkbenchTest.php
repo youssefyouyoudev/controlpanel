@@ -42,7 +42,21 @@ class FakeWorkbenchDriver implements DatabaseDriverInterface
 
         return ['database' => $database, 'classification' => $classification, 'sql' => $sql, 'columns' => ['id'], 'rows' => [['id' => 1]], 'row_count' => 1];
     }
+
+    public function securityDiagnostics(): array
+    {
+        return ['mode' => 'readonly', 'dangerous_privileges' => [], 'warnings' => [], 'checked' => true];
+    }
 }
+
+it('keeps database workbench disabled by default in repository configuration', function (): void {
+    $config = require config_path('youpanel.php');
+
+    expect($config['database_admin']['enabled'])->toBeFalse()
+        ->and($config['database_admin']['mode'])->toBe('readonly')
+        ->and($config['database_admin']['username'])->toBeNull()
+        ->and($config['database_admin']['password'])->toBeNull();
+});
 
 it('classifies read only and blocked sql statements', function (): void {
     $classifier = app(SqlStatementClassifier::class);
@@ -51,6 +65,17 @@ it('classifies read only and blocked sql statements', function (): void {
         ->and($classifier->classify('show tables')['readonly'])->toBeTrue()
         ->and($classifier->classify('delete from users')['readonly'])->toBeFalse()
         ->and($classifier->classify('select 1; select 2')['type'])->toBe('multi');
+});
+
+it('blocks dangerous database capabilities and parser bypass tricks', function (): void {
+    $classifier = app(SqlStatementClassifier::class);
+
+    expect($classifier->classify('/* leading */ SeLeCt 1')['readonly'])->toBeTrue()
+        ->and($classifier->classify('/*!50000 select load_file("/etc/passwd") */')['readonly'])->toBeFalse()
+        ->and($classifier->classify('select load_file("/etc/passwd")')['readonly'])->toBeFalse()
+        ->and($classifier->classify('select * from users into outfile "/tmp/out"')['readonly'])->toBeFalse()
+        ->and($classifier->classify('with deleted as (delete from users returning *) select * from deleted')['readonly'])->toBeFalse()
+        ->and($classifier->classify('delimiter //')['readonly'])->toBeFalse();
 });
 
 it('keeps database workbench owner only and requires password for queries', function (): void {

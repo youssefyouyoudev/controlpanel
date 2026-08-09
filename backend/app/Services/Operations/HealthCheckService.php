@@ -3,30 +3,20 @@
 namespace App\Services\Operations;
 
 use App\Enums\HealthStatus;
-use App\Exceptions\OperationBlockedException;
 use App\Models\WebsiteHealthCheck;
 use App\Models\WebsiteHealthCheckResult;
 use App\Notifications\YouPanelNotification;
 use App\Services\AuditLogger;
-use Illuminate\Support\Facades\Http;
+use App\Services\Security\SafeUrlService;
 use Illuminate\Support\Facades\Notification;
 
 class HealthCheckService
 {
-    public function __construct(private readonly AuditLogger $auditLogger) {}
+    public function __construct(private readonly AuditLogger $auditLogger, private readonly SafeUrlService $urls) {}
 
     public function assertSafeUrl(string $url, bool $allowInternal = false): void
     {
-        $parts = parse_url($url);
-        if (! in_array($parts['scheme'] ?? '', ['http', 'https'], true) || blank($parts['host'] ?? null)) {
-            throw new OperationBlockedException('Health checks require an HTTP or HTTPS URL.');
-        }
-
-        $host = (string) $parts['host'];
-        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
-        if (! $allowInternal && $this->isPrivateAddress($ip)) {
-            throw new OperationBlockedException('Health checks cannot target private, local or metadata addresses.');
-        }
+        $this->urls->assertSafeHttpUrl($url, $allowInternal);
     }
 
     public function run(WebsiteHealthCheck $check): WebsiteHealthCheckResult
@@ -38,10 +28,7 @@ class HealthCheckService
             $status = str_contains($check->url, 'offline') ? HealthStatus::Offline : HealthStatus::Healthy;
             $httpStatus = $status === HealthStatus::Healthy ? $check->expected_status : 503;
         } else {
-            $response = Http::timeout(min($check->timeout_seconds, (int) config('youpanel.health.timeout_seconds')))
-                ->maxRedirects(2)
-                ->withOptions(['stream' => false])
-                ->get($check->url);
+            $response = $this->urls->get($check->url, $check->allow_internal, min($check->timeout_seconds, (int) config('youpanel.health.timeout_seconds')), 2);
             $httpStatus = $response->status();
             $body = substr($response->body(), 0, (int) config('youpanel.health.max_response_bytes'));
             $status = $httpStatus === $check->expected_status && (! $check->expected_text || str_contains($body, $check->expected_text))
@@ -80,14 +67,4 @@ class HealthCheckService
         return $result;
     }
 
-    private function isPrivateAddress(string $ip): bool
-    {
-        if (! filter_var($ip, FILTER_VALIDATE_IP)) {
-            return true;
-        }
-
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false
-            || str_starts_with($ip, '169.254.')
-            || $ip === '0.0.0.0';
-    }
 }

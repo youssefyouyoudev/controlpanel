@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\TerminalSession;
 use App\Models\Website;
+use App\Services\AuditLogger;
 use App\Services\Terminal\TerminalSessionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -30,9 +31,9 @@ class TerminalSessionController extends Controller
 
         return ApiResponse::success([
             'session' => $this->payload($session),
-            'token' => $result['token'],
+            'ticket' => $result['ticket'],
             'websocket_url' => config('youpanel.terminal.websocket_url'),
-        ], 'Terminal session token created.', 201);
+        ], 'Terminal session ticket created.', 201);
     }
 
     public function show(Request $request, TerminalSession $terminalSession): JsonResponse
@@ -51,18 +52,45 @@ class TerminalSessionController extends Controller
 
     public function validateGatewayToken(Request $request, TerminalSessionService $terminal): JsonResponse
     {
-        $configuredSecret = (string) config('youpanel.terminal.gateway_secret');
-        abort_if($configuredSecret === '', 503, 'Terminal gateway secret is not configured.');
-        abort_unless(hash_equals($configuredSecret, (string) $request->header('X-YouPanel-Terminal-Gateway-Secret')), 403);
+        $this->assertGatewaySecret($request);
 
         $data = $request->validate([
             'session' => ['required', 'string'],
-            'token' => ['required', 'string'],
+            'ticket' => ['required', 'string'],
         ]);
-        $session = $terminal->validateToken((string) $data['session'], (string) $data['token']);
-        $session->update(['status' => 'running', 'started_at' => $session->started_at ?? now(), 'last_activity_at' => now()]);
+        $session = $terminal->consumeGatewayTicket(
+            (string) $data['session'],
+            (string) $data['ticket'],
+            $request->ip(),
+            (string) $request->userAgent(),
+        );
 
         return ApiResponse::success(['session' => $this->payload($session->refresh())]);
+    }
+
+    public function gatewayEvent(Request $request, TerminalSession $terminalSession, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->assertGatewaySecret($request);
+
+        $data = $request->validate([
+            'event' => ['required', 'string', 'in:terminal.gateway.rejected,terminal.session.disconnected,terminal.session.idle_timeout,terminal.session.max_duration,terminal.session.output_limit'],
+            'reason' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        if (in_array($data['event'], ['terminal.session.disconnected', 'terminal.session.idle_timeout', 'terminal.session.max_duration', 'terminal.session.output_limit'], true)
+            && $terminalSession->ended_at === null) {
+            $terminalSession->update(['status' => 'closed', 'ended_at' => now(), 'last_activity_at' => now()]);
+        }
+
+        $auditLogger->record((string) $data['event'], $terminalSession->user, $terminalSession->website, [
+            'target_type' => 'terminal_session',
+            'target_identifier' => $terminalSession->uuid,
+            'reason' => $data['reason'] ?? null,
+            'ip_address' => $request->ip(),
+            'user_agent' => (string) $request->userAgent(),
+        ]);
+
+        return ApiResponse::success(['recorded' => true]);
     }
 
     /**
@@ -78,8 +106,16 @@ class TerminalSessionController extends Controller
             'shell' => $session->shell,
             'status' => $session->status,
             'expires_at' => $session->expires_at?->toISOString(),
+            'consumed_at' => $session->consumed_at?->toISOString(),
             'idle_timeout_seconds' => $session->metadata['idle_timeout_seconds'] ?? null,
             'max_duration_seconds' => $session->metadata['max_duration_seconds'] ?? null,
         ];
+    }
+
+    private function assertGatewaySecret(Request $request): void
+    {
+        $configuredSecret = (string) config('youpanel.terminal.gateway_secret');
+        abort_if($configuredSecret === '', 503, 'Terminal gateway secret is not configured.');
+        abort_unless(hash_equals($configuredSecret, (string) $request->header('X-YouPanel-Terminal-Gateway-Secret')), 403);
     }
 }

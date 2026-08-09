@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { api, authApi, normalizeApiError } from "@/lib/api";
@@ -89,6 +90,24 @@ describe("csp proxy", () => {
     expect(unstable_doesMiddlewareMatch({ config: proxyConfig, nextConfig, url: "/dashboard" })).toBe(true);
     expect(unstable_doesMiddlewareMatch({ config: proxyConfig, nextConfig, url: "/_next/static/chunk.js" })).toBe(false);
     expect(unstable_doesMiddlewareMatch({ config: proxyConfig, nextConfig, url: "/favicon.ico" })).toBe(false);
+  });
+});
+
+describe("frontend security sinks", () => {
+  it("does not put terminal tickets in the WebSocket URL", () => {
+    const source = readFileSync("components/terminal-client.tsx", "utf8");
+
+    expect(source).toContain("new WebSocket(websocketUrl)");
+    expect(source).toContain('type: "authenticate"');
+    expect(source).not.toContain('searchParams.set("token"');
+    expect(source).not.toContain('searchParams.set("ticket"');
+  });
+
+  it("does not render the two-factor QR code with dangerouslySetInnerHTML", () => {
+    const source = readFileSync("app/(app)/settings/security/page.tsx", "utf8");
+
+    expect(source).not.toContain("dangerouslySetInnerHTML");
+    expect(source).toContain("data:image/svg+xml;base64");
   });
 });
 

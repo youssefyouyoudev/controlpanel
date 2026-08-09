@@ -61,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('operations-read', fn (Request $request): Limit => Limit::perMinute(120)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('operations-write', fn (Request $request): Limit => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('operations-sensitive', fn (Request $request): Limit => Limit::perMinute(10)->by($request->user()?->id ?: $request->ip()));
+        RateLimiter::for('terminal-gateway', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
         RateLimiter::for('logs-read', fn (Request $request): Limit => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('coolify-read', fn (Request $request): Limit => Limit::perMinute(90)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('coolify-write', fn (Request $request): Limit => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip()));
@@ -83,6 +84,34 @@ class AppServiceProvider extends ServiceProvider
 
             if ((bool) config('coolify.enabled') && blank(config('coolify.api_token'))) {
                 throw new RuntimeException('Coolify is enabled but COOLIFY_API_TOKEN is missing.');
+            }
+
+            if (config('app.debug') !== false) {
+                throw new RuntimeException('APP_DEBUG must be false in production.');
+            }
+
+            if ((bool) config('youpanel.terminal.enabled')) {
+                $terminalSecret = (string) config('youpanel.terminal.gateway_secret');
+                $terminalOrigins = (array) config('youpanel.terminal.allowed_origins', []);
+                if (strlen($terminalSecret) < 32 || in_array(strtolower($terminalSecret), ['secret', 'password', 'changeme', 'test', 'development'], true)) {
+                    throw new RuntimeException('Terminal is enabled with a missing or weak YOUPANEL_TERMINAL_GATEWAY_SECRET.');
+                }
+
+                if ($terminalOrigins === [] || collect($terminalOrigins)->contains(fn (string $origin): bool => trim($origin) === '*' || strtolower(trim($origin)) === 'null')) {
+                    throw new RuntimeException('Terminal is enabled without strict YOUPANEL_TERMINAL_ALLOWED_ORIGINS.');
+                }
+            }
+
+            if ((bool) config('youpanel.database_admin.enabled')) {
+                if (! in_array(config('youpanel.database_admin.mode'), ['readonly', 'managed'], true)) {
+                    throw new RuntimeException('YOUPANEL_DATABASE_ADMIN_MODE must be readonly or managed.');
+                }
+
+                foreach (['host', 'username', 'password'] as $databaseKey) {
+                    if (blank(config('youpanel.database_admin.'.$databaseKey))) {
+                        throw new RuntimeException('Database workbench is enabled but YOUPANEL_DATABASE_ADMIN_'.strtoupper($databaseKey).' is missing.');
+                    }
+                }
             }
         }
 

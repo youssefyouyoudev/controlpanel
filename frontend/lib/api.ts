@@ -31,6 +31,7 @@ import {
   logSourceSchema,
   notificationSchema,
   serviceSchema,
+  securityStatusSchema,
   terminalSessionSchema,
   trashEntrySchema,
   twoFactorSetupSchema,
@@ -64,6 +65,7 @@ import {
   type LogPayload,
   type LogSource,
   type ServiceStatus,
+  type SecurityStatus,
   type TerminalSession,
   type TrashEntry,
   type TwoFactorSetup,
@@ -234,6 +236,13 @@ export const dashboardApi = {
   async services(): Promise<ServiceStatus[]> {
     const data = await unwrap(api.get<Envelope<{ services: ServiceStatus[] }>>("/api/v1/dashboard/services"));
     return serviceSchema.array().parse(data.services);
+  },
+};
+
+export const securityApi = {
+  async status(): Promise<SecurityStatus> {
+    const data = await unwrap(api.get<Envelope<{ status: unknown }>>("/api/v1/security/status"));
+    return securityStatusSchema.parse(data.status);
   },
 };
 
@@ -584,15 +593,15 @@ export const consoleApi = {
 };
 
 export const terminalApi = {
-  async create(current_password: string): Promise<{ session: TerminalSession; token: string; websocket_url: string }> {
+  async create(current_password: string): Promise<{ session: TerminalSession; ticket: string; websocket_url: string }> {
     await csrfCookie();
-    const data = await unwrap(api.post<Envelope<{ session: unknown; token: string; websocket_url: string }>>("/api/v1/terminal/sessions", { current_password }));
-    return { session: terminalSessionSchema.parse(data.session), token: data.token, websocket_url: data.websocket_url };
+    const data = await unwrap(api.post<Envelope<{ session: unknown; ticket: string; websocket_url: string }>>("/api/v1/terminal/sessions", { current_password }));
+    return { session: terminalSessionSchema.parse(data.session), ticket: data.ticket, websocket_url: data.websocket_url };
   },
-  async createForWebsite(websiteId: string, current_password: string): Promise<{ session: TerminalSession; token: string; websocket_url: string }> {
+  async createForWebsite(websiteId: string, current_password: string): Promise<{ session: TerminalSession; ticket: string; websocket_url: string }> {
     await csrfCookie();
-    const data = await unwrap(api.post<Envelope<{ session: unknown; token: string; websocket_url: string }>>(`/api/v1/websites/${websiteId}/terminal/sessions`, { current_password }));
-    return { session: terminalSessionSchema.parse(data.session), token: data.token, websocket_url: data.websocket_url };
+    const data = await unwrap(api.post<Envelope<{ session: unknown; ticket: string; websocket_url: string }>>(`/api/v1/websites/${websiteId}/terminal/sessions`, { current_password }));
+    return { session: terminalSessionSchema.parse(data.session), ticket: data.ticket, websocket_url: data.websocket_url };
   },
   async close(uuid: string): Promise<TerminalSession> {
     await csrfCookie();

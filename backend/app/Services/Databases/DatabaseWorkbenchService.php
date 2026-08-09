@@ -18,6 +18,7 @@ class DatabaseWorkbenchService
     {
         return [
             ...$this->driver->overview(),
+            'security' => $this->driver->securityDiagnostics(),
             'website_links' => WebsiteDatabase::query()->with('website:id,name,domain')->latest()->get()->map(fn (WebsiteDatabase $database): array => $this->associationPayload($database))->all(),
         ];
     }

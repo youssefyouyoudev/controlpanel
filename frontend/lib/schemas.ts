@@ -193,6 +193,14 @@ export const databaseOverviewSchema = z.object({
   version: z.string().nullable().optional(),
   database_count: z.number().optional(),
   configured: z.boolean().optional(),
+  mode: z.enum(["readonly", "managed"]).optional(),
+  security: z.object({
+    mode: z.string(),
+    checked: z.boolean(),
+    dangerous_privileges: z.array(z.string()).default([]),
+    elevated_privileges: z.array(z.string()).default([]),
+    warnings: z.array(z.string()).default([]),
+  }).optional(),
   website_links: z.array(z.object({
     id: z.number(),
     website_id: z.number(),
@@ -582,6 +590,20 @@ export const coolifyStatusSchema = z.object({
 });
 export type CoolifyStatus = z.infer<typeof coolifyStatusSchema>;
 
+export const securityStatusSchema = z.object({
+  checks: z.array(z.object({
+    name: z.string(),
+    status: z.enum(["pass", "warning", "danger"]),
+    message: z.string(),
+  })),
+  score: z.object({
+    passed: z.number(),
+    warnings: z.number(),
+    failed: z.number(),
+  }),
+});
+export type SecurityStatus = z.infer<typeof securityStatusSchema>;
+
 export const coolifyResourceLinkSchema = z.object({
   id: z.number(),
   website_id: z.number(),
@@ -687,6 +709,7 @@ export const terminalSessionSchema = z.object({
   shell: z.string(),
   status: z.string(),
   expires_at: z.string().nullable(),
+  consumed_at: z.string().nullable().optional(),
   idle_timeout_seconds: z.number().nullable().optional(),
   max_duration_seconds: z.number().nullable().optional(),
 });

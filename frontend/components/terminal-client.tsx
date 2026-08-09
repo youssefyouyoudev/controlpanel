@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { normalizeApiError, terminalApi } from "@/lib/api";
 
 type TerminalEnvelope =
+  | { type: "authenticated" }
   | { type: "output"; data: string }
   | { type: "error"; message: string }
   | { type: "exit"; code?: number };
@@ -39,7 +40,7 @@ export function TerminalClient({ websiteId }: { websiteId?: string }) {
     onSuccess: async (payload) => {
       setPassword("");
       setSessionLabel(`${payload.session.scope} · ${payload.session.working_directory}`);
-      await openTerminal(payload.websocket_url, payload.session.uuid, payload.token);
+      await openTerminal(payload.websocket_url, payload.session.uuid, payload.ticket);
     },
   });
 
@@ -53,7 +54,7 @@ export function TerminalClient({ websiteId }: { websiteId?: string }) {
     };
   }, [resize]);
 
-  async function openTerminal(websocketUrl: string, sessionUuid: string, token: string) {
+  async function openTerminal(websocketUrl: string, sessionUuid: string, ticket: string) {
     setConnection("connecting");
     const [{ Terminal }, { FitAddon }] = await Promise.all([import("@xterm/xterm"), import("@xterm/addon-fit")]);
     terminalRef.current?.dispose();
@@ -75,22 +76,22 @@ export function TerminalClient({ websiteId }: { websiteId?: string }) {
     fitRef.current = fit;
     setTerminalReady(true);
 
-    const url = new URL(websocketUrl);
-    url.searchParams.set("session", sessionUuid);
-    url.searchParams.set("token", token);
-    const socket = new WebSocket(url);
+    const socket = new WebSocket(websocketUrl);
     socketRef.current = socket;
 
     socket.addEventListener("open", () => {
-      setConnection("connected");
       setSocketReady(true);
-      terminal.writeln("\r\nConnected.");
-      sendResize();
+      terminal.writeln("\r\nAuthenticating...");
+      socket.send(JSON.stringify({ type: "authenticate", session: sessionUuid, ticket }));
     });
     socket.addEventListener("message", (event) => {
       try {
         const message = JSON.parse(String(event.data)) as TerminalEnvelope;
-        if (message.type === "output") {
+        if (message.type === "authenticated") {
+          setConnection("connected");
+          terminal.writeln("\r\nConnected.");
+          sendResize();
+        } else if (message.type === "output") {
           terminal.write(message.data);
         } else if (message.type === "error") {
           terminal.writeln(`\r\n${message.message}`);

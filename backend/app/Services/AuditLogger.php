@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Website;
+use App\Services\Operations\SecretRedactor;
 use Illuminate\Http\Request;
 
 class AuditLogger
 {
+    public function __construct(private readonly SecretRedactor $redactor) {}
+
     /**
      * @param  array<string, mixed>  $metadata
      */
@@ -35,8 +38,6 @@ class AuditLogger
      */
     private function cleanMetadata(array $metadata): array
     {
-        unset($metadata['password'], $metadata['password_confirmation'], $metadata['current_password'], $metadata['token']);
-
-        return $metadata;
+        return $this->redactor->scrubArray($metadata);
     }
 }

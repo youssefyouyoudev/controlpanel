@@ -33,4 +33,9 @@ interface DatabaseDriverInterface
      * @return array<string, mixed>
      */
     public function execute(string $database, string $sql, int $limit): array;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function securityDiagnostics(): array;
 }

@@ -2,7 +2,9 @@
 
 namespace App\Services\Discovery;
 
-use Illuminate\Support\Facades\Http;
+use App\Exceptions\OperationBlockedException;
+use App\Services\AuditLogger;
+use App\Services\Security\SafeUrlService;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 
@@ -17,6 +19,8 @@ class WebsiteDiscoveryService
         private readonly SslInspector $ssl,
         private readonly DatabaseDetector $databases,
         private readonly StorageInspector $storage,
+        private readonly SafeUrlService $urls,
+        private readonly AuditLogger $auditLogger,
     ) {}
 
     /**
@@ -125,15 +129,25 @@ class WebsiteDiscoveryService
             $startedAt = microtime(true);
 
             try {
-                $response = Http::timeout((int) config('youpanel.discovery.health_timeout_seconds', 5))
-                    ->connectTimeout((int) config('youpanel.discovery.health_timeout_seconds', 5))
-                    ->withoutRedirecting()
-                    ->get(($ssl ? 'https://' : 'http://').$primaryDomain);
+                $url = ($ssl ? 'https://' : 'http://').$primaryDomain;
+                $response = $this->urls->get(
+                    $url,
+                    (bool) config('youpanel.discovery.allow_internal_http', false),
+                    (int) config('youpanel.discovery.health_timeout_seconds', 5),
+                    2,
+                );
 
                 $http = [
                     'status_code' => $response->status(),
                     'response_time_ms' => (int) round((microtime(true) - $startedAt) * 1000),
                 ];
+            } catch (OperationBlockedException $exception) {
+                $this->auditLogger->record('discovery.blocked_ssrf', null, null, [
+                    'target_type' => 'website_discovery',
+                    'target_identifier' => $primaryDomain,
+                    'reason' => $exception->getMessage(),
+                ]);
+                $http = ['status_code' => null, 'response_time_ms' => null];
             } catch (\Throwable) {
                 $http = ['status_code' => null, 'response_time_ms' => null];
             }

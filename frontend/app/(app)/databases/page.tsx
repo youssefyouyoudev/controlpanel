@@ -43,6 +43,8 @@ export default function DatabasesPage() {
   const query = useMutation({ mutationFn: () => databaseApi.query(activeDatabase!, { sql, current_password: password, limit: 100 }) });
 
   const linkedWebsites = useMemo(() => overview.data?.website_links.filter((link) => !activeDatabase || link.database_name === activeDatabase) ?? [], [overview.data?.website_links, activeDatabase]);
+  const securityWarnings = overview.data?.security?.warnings ?? [];
+  const dangerousPrivileges = overview.data?.security?.dangerous_privileges ?? [];
   const loadError = overview.error ?? databases.error;
 
   if (overview.isLoading || databases.isLoading) {
@@ -67,6 +69,13 @@ export default function DatabasesPage() {
       </div>
 
       {loadError ? <div className="rounded-[var(--radius)] border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{normalizeApiError(loadError).message}</div> : null}
+      {securityWarnings.length > 0 || dangerousPrivileges.length > 0 ? (
+        <div className="rounded-[var(--radius)] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+          <div className="flex items-center gap-2 font-medium"><KeyRound className="h-4 w-4" />Database workbench security warning</div>
+          <div className="mt-1">{securityWarnings.join(" ")}</div>
+          {dangerousPrivileges.length > 0 ? <div className="mt-1 text-xs">Dangerous grants detected: {dangerousPrivileges.join(", ")}</div> : null}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[280px_1fr]">
         <Card>

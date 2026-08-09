@@ -17,6 +17,7 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
@@ -50,6 +51,7 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($request->string('password')->toString(), $user->password)) {
             RateLimiter::hit($key, 60);
             $this->auditLogger->record('auth.login_failed', $user, metadata: ['target_type' => 'user', 'target_identifier' => $request->string('email')->toString()], request: $request);
+            $this->auditLogger->record('auth.login.failed', $user, metadata: ['target_type' => 'user', 'target_identifier' => $request->string('email')->toString()], request: $request);
 
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
@@ -106,6 +108,7 @@ class AuthController extends Controller
 
         if (! $valid) {
             $this->auditLogger->record('auth.two_factor_failed', $user, metadata: ['target_type' => 'user', 'target_identifier' => (string) $user->id], request: $request);
+            $this->auditLogger->record('auth.2fa.failed', $user, metadata: ['target_type' => 'user', 'target_identifier' => (string) $user->id], request: $request);
 
             throw ValidationException::withMessages([
                 'code' => ['The provided two-factor authentication code is invalid.'],
@@ -117,6 +120,7 @@ class AuthController extends Controller
         }
 
         $this->completeLogin($request, $user);
+        $this->auditLogger->record('auth.2fa.success', $user, metadata: ['target_type' => 'user', 'target_identifier' => (string) $user->id], request: $request);
 
         return ApiResponse::success(['user' => new UserResource($user)], 'Logged in.');
     }
@@ -133,7 +137,9 @@ class AuthController extends Controller
             'last_login_ip' => $request->ip(),
         ])->save();
 
-        $this->auditLogger->record('auth.login', $user, metadata: ['target_type' => 'user', 'target_identifier' => (string) $user->id], request: $request);
+        $metadata = ['target_type' => 'user', 'target_identifier' => (string) $user->id];
+        $this->auditLogger->record('auth.login', $user, metadata: $metadata, request: $request);
+        $this->auditLogger->record('auth.login.success', $user, metadata: $metadata, request: $request);
     }
 
     public function logout(Request $request): JsonResponse
@@ -189,8 +195,12 @@ class AuthController extends Controller
     {
         $user = $request->user();
         $user->forceFill(['password' => Hash::make($request->string('password')->toString())])->save();
+        $deletedSessions = DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $request->session()->getId())
+            ->delete();
 
-        $this->auditLogger->record('password.changed', $user, metadata: ['target_type' => 'user', 'target_identifier' => (string) $user->id], request: $request);
+        $this->auditLogger->record('password.changed', $user, metadata: ['target_type' => 'user', 'target_identifier' => (string) $user->id, 'other_sessions_invalidated' => $deletedSessions], request: $request);
 
         return ApiResponse::success(null, 'Password updated.');
     }
